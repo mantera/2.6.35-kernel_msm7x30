@@ -1,3 +1,4 @@
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/i2c.h>
@@ -15,13 +16,10 @@
 #include <linux/bu21018mwv_fw1.h>
 #include "../../../arch/arm/mach-msm/smd_private.h"
 #include "../../../arch/arm/mach-msm/proc_comm.h"
-#include <linux/slab.h>	// temp for BSP 4040
 
-
-#ifdef CONFIG_FIH_TOUCHSCREEN_INNOLUX
 extern int innolux_ts_active;
-#endif
 
+//
 extern unsigned int fih_get_product_id(void);
 extern unsigned int fih_get_product_phase(void);
 
@@ -132,7 +130,7 @@ static int bu21018mwv_get_ver(void)
 
     return 0;
 }
-/*
+
 static int my_atox(const char *ptr)
 {
 	int value = 0;
@@ -168,8 +166,7 @@ static int my_atoi(const char *name)
 	}
     }
 }
-*/
-/*
+
 static void bu21018mwv_read_ini(void)
 {
     static struct file *filp = NULL;
@@ -260,12 +257,11 @@ static void bu21018mwv_read_ini(void)
 	}
 
 	// close ini file
-	vfs_fsync(filp, filp->f_path.dentry, 1);
+	//vfs_fsync(filp, filp->f_path.dentry, 1);
     filp_close(filp, NULL);
     filp = NULL;
 }
-*/
-/*
+
 static void re_init(void)
 {
     static struct file *filp = NULL;
@@ -342,15 +338,14 @@ static void re_init(void)
     }
 
 	// close ini file
-	vfs_fsync(filp, filp->f_path.dentry, 1);
+	//vfs_fsync(filp, filp->f_path.dentry, 1);
     filp_close(filp, NULL);
     filp = NULL;
 
 	I2C_ByteWrite(0xB1, 0x00);
 	I2C_ByteWrite(0xC7, 0x01);
 }
-*/
-/*
+
 static void re_download_fw(void)
 {
     static struct file *filp = NULL;
@@ -428,24 +423,24 @@ static void re_download_fw(void)
    	I2C_ByteWrite(0xB5, 0x00);
    	
 	// close ini file
-	vfs_fsync(filp, filp->f_path.dentry, 1);
+	//vfs_fsync(filp, filp->f_path.dentry, 1);
     filp_close(filp, NULL);
     filp = NULL;
 }
-*/
+
 static void test_func(struct work_struct *work)
 {
 	switch (iosw)
 	{
-//		case 0:
-//			bu21018mwv_read_ini();
-//			break;
-//		case 1:
-//			re_init();
-//			break;
-//		case 2:
-//			re_download_fw();
-//			re_init();
+		case 0:
+			bu21018mwv_read_ini();
+			break;
+		case 1:
+			re_init();
+			break;
+		case 2:
+			re_download_fw();
+			re_init();
 			break;
 		default:
 			break;
@@ -890,6 +885,8 @@ static void bu21018mwv_isr_workqueue(struct work_struct *work)
 			input_report_abs(ts->touch_input, ABS_MT_TOUCH_MAJOR, 255);
 			input_report_abs(ts->touch_input, ABS_MT_POSITION_X, data[0]);
 			input_report_abs(ts->touch_input, ABS_MT_POSITION_Y, data[1]);
+			input_report_abs(ts->touch_input, ABS_MT_PRESSURE, 255);
+			input_report_key(ts->touch_input, BTN_TOUCH, 1);
 			input_mt_sync(ts->touch_input);
 		}
 		
@@ -898,12 +895,14 @@ static void bu21018mwv_isr_workqueue(struct work_struct *work)
 			input_report_abs(ts->touch_input, ABS_MT_TOUCH_MAJOR, 255);
 			input_report_abs(ts->touch_input, ABS_MT_POSITION_X, data[2]);
 			input_report_abs(ts->touch_input, ABS_MT_POSITION_Y, data[3]);
+			input_report_abs(ts->touch_input, ABS_MT_PRESSURE, 255);
+			input_report_key(ts->touch_input, BTN_TOUCH, 1);
 			input_mt_sync(ts->touch_input);
 		}
 #else
 		input_report_abs(ts->touch_input, ABS_X, data[0]);
 		input_report_abs(ts->touch_input, ABS_Y, data[1]);
-		input_report_abs(ts->touch_input, ABS_PRESSURE, 255);
+		input_report_abs(ts->touch_input, ABS_MT_PRESSURE, 255);
 		input_report_key(ts->touch_input, BTN_TOUCH, 1);
 #endif
 		input_sync(ts->touch_input);
@@ -915,9 +914,11 @@ static void bu21018mwv_isr_workqueue(struct work_struct *work)
 		{
 #ifdef BU21018MWV_MT
 		input_report_abs(ts->touch_input, ABS_MT_TOUCH_MAJOR, 0);
+		input_report_abs(ts->touch_input, ABS_MT_PRESSURE, 0);
+		input_report_key(ts->touch_input, BTN_TOUCH, 0);
 		input_mt_sync(ts->touch_input);
 #else
-		input_report_abs(ts->touch_input, ABS_PRESSURE, 0);
+		input_report_abs(ts->touch_input, ABS_MT_PRESSURE, 0);
 		input_report_key(ts->touch_input, BTN_TOUCH, 0);
 #endif
 			input_sync(ts->touch_input);
@@ -928,9 +929,11 @@ static void bu21018mwv_isr_workqueue(struct work_struct *work)
 	{
 #ifdef BU21018MWV_MT
 		input_report_abs(ts->touch_input, ABS_MT_TOUCH_MAJOR, 0);
+		input_report_abs(ts->touch_input, ABS_MT_PRESSURE, 0);
+		input_report_key(ts->touch_input, BTN_TOUCH, 0);
 		input_mt_sync(ts->touch_input);
 #else
-		input_report_abs(ts->touch_input, ABS_PRESSURE, 0);
+		input_report_abs(ts->touch_input, ABS_MT_PRESSURE, 0);
 		input_report_key(ts->touch_input, BTN_TOUCH, 0);
 #endif
 		input_sync(ts->touch_input);
@@ -1006,6 +1009,8 @@ static void bu21018mwv_isr_workqueue_pr1(struct work_struct *work)
 			input_report_abs(ts->touch_input, ABS_MT_TOUCH_MAJOR, 255);
 			input_report_abs(ts->touch_input, ABS_MT_POSITION_X, data[0]);
 			input_report_abs(ts->touch_input, ABS_MT_POSITION_Y, data[1]);
+			input_report_abs(ts->touch_input, ABS_MT_PRESSURE, 255);
+			input_report_key(ts->touch_input, BTN_TOUCH, 1);
 			input_mt_sync(ts->touch_input);
 			
 			if (getTouch > 1)
@@ -1013,12 +1018,14 @@ static void bu21018mwv_isr_workqueue_pr1(struct work_struct *work)
 				input_report_abs(ts->touch_input, ABS_MT_TOUCH_MAJOR, 255);
 				input_report_abs(ts->touch_input, ABS_MT_POSITION_X, data[2]);
 				input_report_abs(ts->touch_input, ABS_MT_POSITION_Y, data[3]);
+				input_report_abs(ts->touch_input, ABS_MT_PRESSURE, 255);
+				input_report_key(ts->touch_input, BTN_TOUCH, 1);
 				input_mt_sync(ts->touch_input);
 			}
 #else
 			input_report_abs(ts->touch_input, ABS_X, data[0]);
 			input_report_abs(ts->touch_input, ABS_Y, data[1]);
-			input_report_abs(ts->touch_input, ABS_PRESSURE, 255);
+			input_report_abs(ts->touch_input, ABS_MT_PRESSURE, 255);
 			input_report_key(ts->touch_input, BTN_TOUCH, 1);
 #endif
 			input_sync(ts->touch_input);
@@ -1052,9 +1059,11 @@ static void bu21018mwv_isr_workqueue_pr1(struct work_struct *work)
 	{
 #ifdef BU21018MWV_MT
 		input_report_abs(ts->touch_input, ABS_MT_TOUCH_MAJOR, 0);
+		input_report_abs(ts->touch_input, ABS_MT_PRESSURE, 0);
+		input_report_key(ts->touch_input, BTN_TOUCH, 0);
 		input_mt_sync(ts->touch_input);
 #else
-		input_report_abs(ts->touch_input, ABS_PRESSURE, 0);
+		input_report_abs(ts->touch_input, ABS_MT_PRESSURE, 0);
 		input_report_key(ts->touch_input, BTN_TOUCH, 0);
 #endif
 		input_sync(ts->touch_input);
@@ -1197,16 +1206,13 @@ static int bu21018mwv_probe(struct i2c_client *client, const struct i2c_device_i
 	struct input_dev *touch_input;
 	struct input_dev *keyevent_input;
 	struct vreg *vreg_ldo12;
-	int rc;
-
-#ifdef CONFIG_FIH_TOUCHSCREEN_INNOLUX
-	if (innolux_ts_active)
+	int rc;	
+	
+        if (innolux_ts_active)
 	{
 		printk(KERN_INFO "[Touch] %s: innolux already exists. bu21018mwv_probe() abort.\n", __func__);
 		return -ENODEV;
 	}
-#endif
-
 	// Read HWID
 	if (fih_get_product_id() == Product_FB0 && fih_get_product_phase() == Product_PR1)
 	{
@@ -1338,7 +1344,8 @@ static int bu21018mwv_probe(struct i2c_client *client, const struct i2c_device_i
 		goto err2;
 	}
 	
-	touch_input->name  = "bu21018mwv";
+	//I just rename the touchscreen name to make different with original
+	touch_input->name  = "bu21018mwv-ics";
 	touch_input->phys  = "bu21018mwv/input0";
 	set_bit(EV_KEY, touch_input->evbit);
 	set_bit(EV_ABS, touch_input->evbit);
@@ -1365,6 +1372,7 @@ static int bu21018mwv_probe(struct i2c_client *client, const struct i2c_device_i
     input_set_abs_params(touch_input, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
     input_set_abs_params(touch_input, ABS_MT_POSITION_X, t_min_x, t_max_x, 0, 0);
     input_set_abs_params(touch_input, ABS_MT_POSITION_Y, t_min_y, t_max_y, 0, 0);
+	input_set_abs_params(touch_input, ABS_PRESSURE, 0, 255, 0, 0);
 #else
 	input_set_abs_params(touch_input, ABS_X, t_min_x, t_max_x, 0, 0);
 	input_set_abs_params(touch_input, ABS_Y, t_min_y, t_max_y, 0, 0);

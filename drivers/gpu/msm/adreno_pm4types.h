@@ -179,13 +179,6 @@
 	 (CP_TYPE3_PKT | (((cnt)-1) << 16) | (CP_NOP << 8))
 
 
-/* Conditionally load a IB based on a flag */
-#define CP_COND_INDIRECT_BUFFER_PFE 0x3A /* prefetch enabled */
-#define CP_COND_INDIRECT_BUFFER_PFD 0x32 /* prefetch disabled */
-
-/* Load a buffer with pre-fetch enabled */
-#define CP_INDIRECT_BUFFER_PFE 0x3F
-
 /* packet headers */
 #define CP_HDR_ME_INIT	cp_type3_packet(CP_ME_INIT, 18)
 #define CP_HDR_INDIRECT_BUFFER_PFD cp_type3_packet(CP_INDIRECT_BUFFER_PFD, 2)

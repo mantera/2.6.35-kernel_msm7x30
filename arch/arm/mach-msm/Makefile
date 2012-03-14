@@ -201,6 +201,9 @@ obj-$(CONFIG_BT_MSM_PINTEST)  += btpintest.o
 #obj-$(CONFIG_FIH_CONFIG_GROUP) += fxx_info.o
 obj-y += fxx_info.o
 
+# FIHTDC, HenryWang, FTM phone function
+obj-$(CONFIG_FIH_FTM_PHONE) += ftm_phone.o
+
 #SW2-5-1-MP-DbgCfgTool-00+[
 obj-y += dbgcfgtool.o
 obj-$(CONFIG_FIH_LAST_ALOG) += alog_ram_console.o
