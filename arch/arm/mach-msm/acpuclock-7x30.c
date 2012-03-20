@@ -97,10 +97,13 @@ static struct pll pll2_tbl[] = {
 	{  31, 1, 4, 0 }, /* 600 MHz */
 	{  42, 0, 1, 0 }, /*  806 MHz */
 	{  53, 1, 3, 0 }, /* 1024 MHz */
-	{ 125, 0, 1, 1 }, /* 1200 MHz */
+	{  58, 1, 3, 0 }, /* 1113 MHz */
+	{  63, 1, 3, 0 }, /* 1209 MHz */
+	{  68, 1, 3, 0 }, /* 1305 MHz */
 	{  73, 0, 1, 0 }, /* 1401 MHz */
 	{  79, 0, 1, 0 }, /* 1516 MHz */
 	{  84, 0, 1, 0 }, /* 1612 MHz */
+	{  88, 1, 3, 0 }, /* 1708 MHz */
 	{  94, 0, 1, 0 }, /* 1804 MHz */
 	{  100, 0, 1, 0 }, /* 1920 MHz */
 	{  104, 0, 1, 0 }, /* 1997 MHz */
@@ -120,7 +123,7 @@ static struct pll pll2_tbl[] = {
  */
 static struct clkctl_acpu_speed acpu_freq_tbl[] = {
 	{ 0, 24576,  SRC_LPXO, 0, 0,  30720000,  900, VDD_RAW(900) },
-	{ 0, 61440,  PLL_3,    5, 11, 61440000,  900, VDD_RAW(900) },
+	{ 1, 61440,  PLL_3,    5, 11, 61440000,  900, VDD_RAW(900) },
 	{ 1, 122880, PLL_3,    5, 5,  61440000,  900, VDD_RAW(900) },
 	{ 0, 184320, PLL_3,    5, 4,  61440000,  900, VDD_RAW(900) },
 	{ 0, MAX_AXI_KHZ, SRC_AXI, 1, 0, 61440000, 900, VDD_RAW(900) },
@@ -136,13 +139,16 @@ static struct clkctl_acpu_speed acpu_freq_tbl[] = {
 	 */
 	{ 1, 806400,  PLL_2, 3, 0, UINT_MAX, 1100, VDD_RAW(1100), &pll2_tbl[3]},
 	{ 1, 1024000, PLL_2, 3, 0, UINT_MAX, 1200, VDD_RAW(1200), &pll2_tbl[4]},
-	{ 1, 1200000, PLL_2, 3, 0, UINT_MAX, 1200, VDD_RAW(1200), &pll2_tbl[5]},
+	{ 1, 1113000, PLL_2, 3, 0, UINT_MAX, 1200, VDD_RAW(1200), &pll2_tbl[3]},
+	{ 1, 1209600, PLL_2, 3, 0, UINT_MAX, 1200, VDD_RAW(1200), &pll2_tbl[4]},
+	{ 1, 1305600, PLL_2, 3, 0, UINT_MAX, 1250, VDD_RAW(1250), &pll2_tbl[5]},
 	{ 1, 1401600, PLL_2, 3, 0, UINT_MAX, 1250, VDD_RAW(1250), &pll2_tbl[6]},
 	{ 1, 1516800, PLL_2, 3, 0, UINT_MAX, 1300, VDD_RAW(1300), &pll2_tbl[7]},
-	{ 1, 1612800, PLL_2, 3, 0, UINT_MAX, 1350, VDD_RAW(1350), &pll2_tbl[8]},
+	{ 1, 1612800, PLL_2, 3, 0, UINT_MAX, 1300, VDD_RAW(1300), &pll2_tbl[8]},
+	{ 1, 1708800, PLL_2, 3, 0, UINT_MAX, 1350, VDD_RAW(1350), &pll2_tbl[9]},
 	{ 1, 1804800, PLL_2, 3, 0, UINT_MAX, 1350, VDD_RAW(1400), &pll2_tbl[9]},
 	{ 1, 1920000, PLL_2, 3, 0, UINT_MAX, 1400, VDD_RAW(1450), &pll2_tbl[10]},
-	{ 1, 1996800, PLL_2, 3, 0, UINT_MAX, 1400, VDD_RAW(1450), &pll2_tbl[11]},
+	{ 0, 1996800, PLL_2, 3, 0, UINT_MAX, 1400, VDD_RAW(1450), &pll2_tbl[11]},
 	{ 1, 2073600, PLL_2, 3, 0, UINT_MAX, 1400, VDD_RAW(1450), &pll2_tbl[12]},
 	{ 1, 2112000, PLL_2, 3, 0, UINT_MAX, 1400, VDD_RAW(1500), &pll2_tbl[13]},
 	{ 0 }
