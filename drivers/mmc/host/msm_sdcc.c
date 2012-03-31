@@ -1418,7 +1418,7 @@ msmsdcc_platform_sdiowakeup_irq(int irq, void *dev_id)
 {
 	struct msmsdcc_host	*host = dev_id;
 
-	pr_debug("%s: SDIO Wake up IRQ : %d\n", mmc_hostname(host->mmc), irq);
+	pr_info("%s: SDIO Wake up IRQ : %d\n", mmc_hostname(host->mmc), irq);
 	BUG_ON(irq != host->plat->sdiowakeup_irq);
 
 	spin_lock(&host->lock);
