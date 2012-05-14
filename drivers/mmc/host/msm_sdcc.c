@@ -74,7 +74,6 @@ static int libra_loaded = 0;
 EXPORT_SYMBOL(libra_loaded);
 
 static unsigned int msmsdcc_pwrsave = 1;
-static int support_sd_removal_turnoff = 1;
 
 #define DUMMY_52_STATE_NONE		0
 #define DUMMY_52_STATE_SENT		1
