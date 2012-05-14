@@ -17,8 +17,6 @@
 #include "../../../arch/arm/mach-msm/smd_private.h"
 #include "../../../arch/arm/mach-msm/proc_comm.h"
 
-extern int innolux_ts_active;
-
 //
 extern unsigned int fih_get_product_id(void);
 extern unsigned int fih_get_product_phase(void);
@@ -1206,13 +1204,8 @@ static int bu21018mwv_probe(struct i2c_client *client, const struct i2c_device_i
 	struct input_dev *touch_input;
 	struct input_dev *keyevent_input;
 	struct vreg *vreg_ldo12;
-	int rc;	
-	
-        if (innolux_ts_active)
-	{
-		printk(KERN_INFO "[Touch] %s: innolux already exists. bu21018mwv_probe() abort.\n", __func__);
-		return -ENODEV;
-	}
+	int rc;
+
 	// Read HWID
 	if (fih_get_product_id() == Product_FB0 && fih_get_product_phase() == Product_PR1)
 	{
@@ -1344,8 +1337,7 @@ static int bu21018mwv_probe(struct i2c_client *client, const struct i2c_device_i
 		goto err2;
 	}
 	
-	//I just rename the touchscreen name to make different with original
-	touch_input->name  = "bu21018mwv-ics";
+	touch_input->name  = "bu21018mwv";
 	touch_input->phys  = "bu21018mwv/input0";
 	set_bit(EV_KEY, touch_input->evbit);
 	set_bit(EV_ABS, touch_input->evbit);
