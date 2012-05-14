@@ -20,9 +20,8 @@ extern int bu21018mwv_active;
 // flag of HW type
 static int hw_ver = HW_UNKNOW;
 // static int bi041p_debug = 0;
+#ifndef CONFIG_FIH_FTM
 static bool bTouch2 = 0;
-#ifdef CONFIG_FIH_FTM
-static int file_path = 0;
 #endif
 
 bool bBackCapKeyPressed = 0;
