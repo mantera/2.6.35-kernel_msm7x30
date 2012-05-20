@@ -492,8 +492,7 @@ static int __init afe_init(void)
 /* FIHTDC, Div2-SW2-BSP, Peter, cts File System Permission Test { */
 #ifdef CONFIG_DEBUG_FS
 	debugfs_afelb = debugfs_create_file("afe_loopback",
-//	S_IFREG | S_IWUGO, NULL, (void *) "afe_loopback",
-	0220, NULL, (void *) "afe_loopback",
+	0220, NULL, (void *) "afe_loopback", /*S_IFREG | S_IWUGO*/
 	&afe_debug_fops);
 #endif
 /* FIHTDC, Div2-SW2-BSP, Peter, cts File System Permission Test } */

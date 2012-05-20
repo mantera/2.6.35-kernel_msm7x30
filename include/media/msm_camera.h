@@ -155,6 +155,13 @@
 #define MSM_CAM_IOCTL_GET_CAMERA_INFO \
 	_IOR(MSM_CAM_IOCTL_MAGIC, 36, struct msm_camera_info *)
 
+//Div6D1-HL-Camera-BringUp-00+{
+#ifdef CONFIG_FIH_CONFIG_GROUP
+#define MSM_CAM_IOCTL_GET_FIH_SENSOR_INFO  \
+	_IOR(MSM_CAM_IOCTL_MAGIC, 37, struct msm_camsensor_info *)
+#endif
+//Div6D1-HL-Camera-BringUp-00+}
+
 #define MSM_CAMERA_LED_OFF  0
 #define MSM_CAMERA_LED_LOW  1
 #define MSM_CAMERA_LED_HIGH 2
@@ -482,6 +489,8 @@ struct msm_snapshot_pp_status {
 #define CFG_GET_AF_MAX_STEPS		26
 #define CFG_GET_PICT_MAX_EXP_LC		27
 #define CFG_SEND_WB_INFO	28
+//Div6D1-HL-Camera-BringUp-00*{
+#ifdef CONFIG_FIH_CONFIG_GROUP
 #define CFG_SET_LEDMOD	29
 #define CFG_SET_EXPOSUREMOD	30
 #define CFG_SET_SATURATION	31
@@ -502,6 +511,10 @@ struct msm_snapshot_pp_status {
 #define CFG_GET_AFSTATE		47
 #define CFG_GET_AFRESULT	48 // FS,20111116
 #define CFG_MAX		49
+#else
+#define CFG_MAX 			29
+#endif
+//Div6D1-HL-Camera-BringUp-00*}
 
 #define MOVE_NEAR	0
 #define MOVE_FAR	1
@@ -527,11 +540,15 @@ struct msm_snapshot_pp_status {
 #define CAMERA_EFFECT_WHITEBOARD	6
 #define CAMERA_EFFECT_BLACKBOARD	7
 #define CAMERA_EFFECT_AQUA		8
+//Div6D1-HL-Camera-BringUp-00*{
+#ifdef CONFIG_FIH_CONFIG_GROUP
 #define CAMERA_EFFECT_BLUISH		9
 #define CAMERA_EFFECT_REDDISH		10
 #define CAMERA_EFFECT_GREENISH		11
+//Div2-SW6-MM-MC-ImplementCameraColorBarMechanism-00*{
 #define CAMERA_EFFECT_COLORBAR		12
 #define CAMERA_EFFECT_MAX		13
+//Div2-SW6-MM-MC-ImplementCameraColorBarMechanism-00*}
 
 
 #define CAMERA_WB_MIN_MINUS_1		0
@@ -623,10 +640,24 @@ struct msm_snapshot_pp_status {
 #define FPS_MODE_AUTO	0
 #define FPS_MODE_FIXED	1
 
-#define AF_MODE_UNCHANGED	-1
-#define AF_MODE_NORMAL	0
-#define AF_MODE_MACRO	1
-#define AF_MODE_AUTO	2
+#define AF_MODE_UNCHANGED -1
+#define AF_MODE_NORMAL   0
+#define AF_MODE_MACRO 1
+#define AF_MODE_AUTO 2
+//Div6D1-CL-Camera-SensorInfo-01+}
+//Div6D1-HL-Camera-Camcorder_HD-00+{
+//Div6D1-CL-Camera-D1_WVGA-00*{
+#define CAMERA_PRECONFIG_VGA 0
+#define CAMERA_PRECONFIG_720P 1
+#define CAMERA_PRECONFIG_D1 2
+#define CAMERA_PRECONFIG_WVGA 3
+//Div6D1-CL-Camera-D1_WVGA-00*}
+//Div6D1-HL-Camera-Camcorder_HD-00+}
+#else
+#define CAMERA_EFFECT_MAX		9
+#endif
+//Div6D1-HL-Camera-BringUp-00*}
+
 
 struct sensor_pict_fps {
 	uint16_t prevfps;
@@ -655,40 +686,48 @@ struct wb_info_cfg {
 };
 
 struct touchAEC{
-	int enable;
-	uint32_t AEC_X;
-	uint32_t AEC_Y;
+    int enable;
+    uint32_t AEC_X;
+    uint32_t AEC_Y;
 };
 
-struct camera_focus_rectangle{
-	/* Focus Window dimensions */
-	int16_t x_upper_left;
-	int16_t y_upper_left;
-	int16_t width; 
-	int16_t height;
-};
+//Div6D1-CL-Camera-autofocus-01+{
+ struct camera_focus_rectangle{  
+    /* Focus Window dimensions */
+    int16_t x_upper_left;           
+    int16_t y_upper_left;
+    int16_t width; 
+    int16_t height;
+} ;
+//Div6D1-CL-Camera-autofocus-01+}
 
-/* Enum Type for different ISO Mode supported */
+ //Div2-SW6-MM-HL-Camera-ISO-01+{
+ //Div2-SW6-MM-HL-Camera-ISO-00+{
+ /* Enum Type for different ISO Mode supported */
 typedef enum
 {
-	CAMERA_ISO_ISO_AUTO = 0,
-	CAMERA_ISO_ISO_DEBLUR,
-	CAMERA_ISO_ISO_100,
-	CAMERA_ISO_ISO_200,
-	CAMERA_ISO_ISO_400,
-	CAMERA_ISO_ISO_800,
-	CAMERA_ISO_ISO_1600,
-	CAMERA_ISO_ISO_MAX
+  CAMERA_ISO_ISO_AUTO = 0,
+  CAMERA_ISO_ISO_DEBLUR,
+  CAMERA_ISO_ISO_100,
+  CAMERA_ISO_ISO_200,
+  CAMERA_ISO_ISO_400,
+  CAMERA_ISO_ISO_800,
+  CAMERA_ISO_ISO_1600,
+  CAMERA_ISO_ISO_MAX
 } camera_iso_mode;
+//Div2-SW6-MM-HL-Camera-ISO-00+}
+//Div2-SW6-MM-HL-Camera-ISO-01+}
 
 struct sensor_cfg_data {
-	int cfgtype;
-	int mode;
-	int rs;
-	uint8_t max_steps;
+    int cfgtype;
+    int mode;
+    int rs;
+    uint8_t max_steps;
 
-	union {
-		int8_t effect;
+    union {
+        int8_t effect;
+        //Div6D1-HL-Camera-BringUp-00+{
+#ifdef CONFIG_FIH_CONFIG_GROUP
 		int8_t wb;
 		int8_t antibanding;
 		int8_t brightness;
@@ -708,7 +747,10 @@ struct sensor_cfg_data {
 		int8_t dis;
 		struct touchAEC AECIndex;
 		struct camera_focus_rectangle focusrec;
+        int8_t hd;//Div6D1-HL-Camera-Camcorder_HD-00+
 		camera_iso_mode iso;
+#endif
+        //Div6D1-HL-Camera-BringUp-00+}
 		uint8_t lens_shading;
 		uint16_t prevl_pf;
 		uint16_t prevp_pl;

@@ -98,99 +98,10 @@
 #define DBG_LIMIT(x...) do {} while (0)
 #endif
 
-enum {
-	BATTERY_REGISTRATION_SUCCESSFUL = 0,
-	BATTERY_DEREGISTRATION_SUCCESSFUL = BATTERY_REGISTRATION_SUCCESSFUL,
-	BATTERY_MODIFICATION_SUCCESSFUL = BATTERY_REGISTRATION_SUCCESSFUL,
-	BATTERY_INTERROGATION_SUCCESSFUL = BATTERY_REGISTRATION_SUCCESSFUL,
-	BATTERY_CLIENT_TABLE_FULL = 1,
-	BATTERY_REG_PARAMS_WRONG = 2,
-	BATTERY_DEREGISTRATION_FAILED = 4,
-	BATTERY_MODIFICATION_FAILED = 8,
-	BATTERY_INTERROGATION_FAILED = 16,
-	/* Client's filter could not be set because perhaps it does not exist */
-	BATTERY_SET_FILTER_FAILED         = 32,
-	/* Client's could not be found for enabling or disabling the individual
-	 * client */
-	BATTERY_ENABLE_DISABLE_INDIVIDUAL_CLIENT_FAILED  = 64,
-	BATTERY_LAST_ERROR = 128,
-};
-
-enum {
-	BATTERY_VOLTAGE_UP = 0,
-	BATTERY_VOLTAGE_DOWN,
-	BATTERY_VOLTAGE_ABOVE_THIS_LEVEL,
-	BATTERY_VOLTAGE_BELOW_THIS_LEVEL,
-	BATTERY_VOLTAGE_LEVEL,
-	BATTERY_ALL_ACTIVITY,
-	VBATT_CHG_EVENTS,
-	BATTERY_VOLTAGE_UNKNOWN,
-};
-
-/*
- * This enum contains defintions of the charger hardware status
- */
-enum chg_charger_status_type {
-	/* The charger is good      */
-	CHARGER_STATUS_GOOD,
-	/* The charger is bad       */
-	CHARGER_STATUS_BAD,
-	/* The charger is weak      */
-	CHARGER_STATUS_WEAK,
-	/* Invalid charger status.  */
-	CHARGER_STATUS_INVALID
-};
-
-/*
- *This enum contains defintions of the charger hardware type
- */
-enum chg_charger_hardware_type {
-	/* The charger is removed                 */
-	CHARGER_TYPE_NONE,
-	/* The charger is a regular wall charger   */
-	CHARGER_TYPE_WALL,
-	/* The charger is a PC USB                 */
-	CHARGER_TYPE_USB_PC,
-	/* The charger is a wall USB charger       */
-	CHARGER_TYPE_USB_WALL,
-	/* The charger is a USB carkit             */
-	CHARGER_TYPE_USB_CARKIT,
-	/* Invalid charger hardware status.        */
-	CHARGER_TYPE_INVALID
-};
-
-/*
- *  This enum contains defintions of the battery status
- */
-enum chg_battery_status_type {
-	/* The battery is good        */
-	BATTERY_STATUS_GOOD,
-	/* The battery is cold/hot    */
-	BATTERY_STATUS_BAD_TEMP,
-	/* The battery is bad         */
-	BATTERY_STATUS_BAD,
-	/* The battery is removed     */
-	BATTERY_STATUS_REMOVED,		/* on v2.2 only */
-	BATTERY_STATUS_INVALID_v1 = BATTERY_STATUS_REMOVED,
-	/* Invalid battery status.    */
-	BATTERY_STATUS_INVALID
-};
-
-/*
- *This enum contains defintions of the battery voltage level
- */
-enum chg_battery_level_type {
-	/* The battery voltage is dead/very low (less than 3.2V) */
-	BATTERY_LEVEL_DEAD,
-	/* The battery voltage is weak/low (between 3.2V and 3.4V) */
-	BATTERY_LEVEL_WEAK,
-	/* The battery voltage is good/normal(between 3.4V and 4.2V) */
-	BATTERY_LEVEL_GOOD,
-	/* The battery voltage is up to full (close to 4.2V) */
-	BATTERY_LEVEL_FULL,
-	/* Invalid battery voltage level. */
-	BATTERY_LEVEL_INVALID
-};
+//Slate Code Start
+bool slate_counter_flag = false;
+EXPORT_SYMBOL(slate_counter_flag);
+//Slate Code End
 
 #ifndef CONFIG_BATTERY_MSM_FAKE
 struct rpc_reply_batt_chg_v1 {

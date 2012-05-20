@@ -233,6 +233,11 @@ struct interrupt_data {
 #define SC_WRITE_10			0x2a
 #define SC_WRITE_12			0xaa
 
+//Div2-5-3-Peripheral-LL-UsbPorting-00+{
+#define SC_READ_TOC             0x43
+#define SC_READ_HEADER          0x44
+//Div2-5-3-Peripheral-LL-UsbPorting-00+}
+
 /* FIHTDC, Div2-SW2-BSP, Penho, UsbPorting { */
 #define SC_READ_NV              0xf0
 #define SC_SWITCH_STATUS        0xf1

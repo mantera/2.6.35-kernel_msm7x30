@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -751,8 +751,8 @@ void ddl_encode_frame_run(struct ddl_client_context *ddl)
 
 	y_addr = (u32) ddl->input_frame.vcd_frm.physical +
 	    ddl->input_frame.vcd_frm.offset;
-	c_addr = (y_addr + (encoder->frame_size.height *
-				encoder->frame_size.width));
+	c_addr = (y_addr + (encoder->frame_size.scan_lines *
+				encoder->frame_size.stride));
 	ddl_move_client_state(ddl, DDL_CLIENT_WAIT_FOR_FRAME_DONE);
 	ddl_move_command_state(ddl->ddl_context, DDL_CMD_ENCODE_FRAME);
 
@@ -823,7 +823,7 @@ u32 ddl_decode_set_buffers(struct ddl_client_context *ddl)
 			(decoder->client_frame_size.stride >> 4) *
 			((decoder->client_frame_size.scan_lines >> 4) + 1));
 		if (decoder->dpb_comv_buffer.virtual_base_addr)
-			ddl_pmem_free(&decoder->dpb_comv_buffer);
+			ddl_pmem_free(decoder->dpb_comv_buffer);
 		ddl_pmem_alloc(&decoder->dpb_comv_buffer, comv_buf_size,
 			       DDL_LINEAR_BUFFER_ALIGN_BYTES);
 		if (!decoder->dpb_comv_buffer.virtual_base_addr) {
@@ -851,10 +851,10 @@ u32 ddl_decode_set_buffers(struct ddl_client_context *ddl)
 		sz *= ref_buf_no;
 		align_bytes = decoder->client_output_buf_req.align;
 		if (decoder->ref_buffer.virtual_base_addr)
-			ddl_pmem_free(&decoder->ref_buffer);
+			ddl_pmem_free(decoder->ref_buffer);
 		ddl_pmem_alloc(&decoder->ref_buffer, sz, align_bytes);
 		if (!decoder->ref_buffer.virtual_base_addr) {
-			ddl_pmem_free(&decoder->dpb_comv_buffer);
+			ddl_pmem_free(decoder->dpb_comv_buffer);
 			VIDC_LOGERR_STRING
 			    ("Dec_set_buf:mpeg_ref_buf_alloc_failed");
 			return VCD_ERR_ALLOC_FAIL;

@@ -183,6 +183,7 @@ static int bma150_power_up(struct bma150_data *bma150)
 	bma150_update_bits(bma150, BMA150_SLEEP, 0);
 	/* wait 1ms for wake-up time from sleep to operational mode */
 	msleep(1);
+
 	return 0;
 }
 
@@ -366,7 +367,7 @@ static void bma150_work_func(struct work_struct *work)
 
 	mutex_lock(&bma150->data_mutex);
 	bma150->last = accel;
-	mutex_unlock(&bma150->data_mutex); 
+	mutex_unlock(&bma150->data_mutex);
 
 	schedule_delayed_work(&bma150->work, delay);
 }
@@ -429,7 +430,7 @@ static ssize_t bma150_enable_store(struct device *dev,
 	if ((enable == 0) || (enable == 1)) {
 		bma150_set_enable(dev, enable);
 	}
-	
+
 	return count;
 }
 

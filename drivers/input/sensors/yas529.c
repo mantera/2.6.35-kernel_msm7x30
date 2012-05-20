@@ -3086,13 +3086,9 @@ geomagnetic_input_work_func(struct work_struct *work)
 
             hwdep_driver.ioctl(YAS529_IOC_GET_DRIVER_STATE,
                             (unsigned long) &state);
-			TRACE_MSENSOR(0);
-            //geomagnetic_multi_lock(); //Div2D5-OwenHuang-Geomagnetic_Deadlock_In_WorkQueue-00-
-            TRACE_MSENSOR(1);
+            geomagnetic_multi_lock();
             data->driver_state = state;
-			TRACE_MSENSOR(2);
-            //geomagnetic_multi_unlock(); //Div2D5-OwenHuang-Geomagnetic_Deadlock_In_WorkQueue-00-
-            TRACE_MSENSOR(3);
+            geomagnetic_multi_unlock();
 
             /* report event */
             code |= (rt & YAS529_REPORT_OVERFLOW_OCCURED);
@@ -3157,31 +3153,13 @@ geomagnetic_resume(struct i2c_client *client)
 static int
 geomagnetic_i2c_write(uint8_t slave, const uint8_t *buf, int len)
 {
-	//Div2D5-OwenHuang-FROCE_RSTN_PULL_HIGH-00+{
-	//GPIO RSTN could not been low, it will make i2c failed!
-	if (!gpio_get_value(YAS529_RST_N))
-	{
-		YLOGE("GPIO_82 = %d", gpio_get_value(YAS529_RST_N)); 
-		gpio_set_value(YAS529_RST_N, 1);
-	}
-	//Div2D5-OwenHuang-FROCE_RSTN_PULL_HIGH-00+}
-
-	return i2c_master_send(this_client, buf, len);
+    return i2c_master_send(this_client, buf, len);
 }
 
 static int
 geomagnetic_i2c_read(uint8_t slave, uint8_t *buf, int len)
 {
-	//Div2D5-OwenHuang-FROCE_RSTN_PULL_HIGH-00+{
-	//GPIO RSTN could not been low, it will make i2c failed!
-	if (!gpio_get_value(YAS529_RST_N))
-	{
-		YLOGE("GPIO_%d = %d", YAS529_RST_N, gpio_get_value(YAS529_RST_N)); 
-		gpio_set_value(YAS529_RST_N, 1);
-	}
-	//Div2D5-OwenHuang-FROCE_RSTN_PULL_HIGH-00+}
-
-	return i2c_master_recv(this_client, buf, len);
+    return i2c_master_recv(this_client, buf, len);
 }
 
 static int

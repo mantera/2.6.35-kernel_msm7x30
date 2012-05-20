@@ -226,6 +226,14 @@ struct msm_handset {
 static struct msm_rpc_client *rpc_client;
 static struct msm_handset *hs;
 
+/* 
+//SW5-Kernel-JC-Workaround_timing-[
+#ifdef CONFIG_FIH_PROJECT_SF4Y6
+bool bDelay=false; //SW5-Kernel-JC-Workaround_timing+
+#endif
+//SW5-Kernel-JC-Workaround_timing-]
+*/
+
 static int hs_find_key(uint32_t hscode)
 {
 	int i, key;
@@ -238,6 +246,16 @@ static int hs_find_key(uint32_t hscode)
 	}
 	return -1;
 }
+
+static void
+report_headset_switch(struct input_dev *dev, int key, int value)
+{
+	struct msm_handset *hs = input_get_drvdata(dev);
+
+	input_report_switch(dev, key, value);
+	switch_set_state(&hs->sdev, value);
+}
+
 
 static void update_state(void)
 {
@@ -293,6 +311,25 @@ void report_hs_key(uint32_t key_code, uint32_t key_parm)
 			printk("%s key %s\n",(key==KEY_POWER?"POWER":"END"),(key_code!=HS_REL_K?"down":"up"));
 		}
 //SW2-5-1-MP-Force_Ramdump-00+]
+//SW5-Kernel-JC-Workaround_timing-[
+/*
+//SW5-Kernel-JC-Workaround_timing+[
+#ifdef CONFIG_FIH_PROJECT_SF4Y6
+               if((key==KEY_POWER) && (key_code!=HS_REL_K))
+                {
+                        msleep(50);
+                        bDelay = true;
+                }
+                if((bDelay)&&(key==KEY_POWER))
+                {
+                        msleep(50);
+                        bDelay = false;    
+                }
+
+#endif
+//SW5-Kernel-JC-Workaround_timing+]
+//SW5-Kernel-JC-Workaround_timing-]
+*/
 		input_report_key(hs->ipdev, key, (key_code != HS_REL_K));
 		break;
 	case SW_HEADPHONE_INSERT_W_MIC:
@@ -305,9 +342,12 @@ void report_hs_key(uint32_t key_code, uint32_t key_parm)
 		break;
 
 	case SW_HEADPHONE_INSERT:
-		hs->hs_on = (key_code != HS_REL_K) ? 1 : 0;
-		input_report_switch(hs->ipdev, key, hs->hs_on);
-		update_state();
+		report_headset_switch(hs->ipdev, key, (key_code != HS_REL_K));
+		/* Div1-FW3-BSP-AUDIO */
+		if (key_code != HS_REL_K)
+			printk("headset plug in\n");
+		else
+			printk("headset plug out\n");
 		break;
 	case SW_MICROPHONE_INSERT:
 		hs->mic_on = (key_code != HS_REL_K) ? 1 : 0;

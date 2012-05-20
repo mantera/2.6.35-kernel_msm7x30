@@ -651,7 +651,7 @@ static struct undef_hook arm_mrc_hook = {
 	.cpsr_mask	= PSR_T_BIT,
 	.cpsr_val	= 0,
 	.fn		= get_tp_trap,
-};
+}
 
 static int __init arm_mrc_hook_init(void)
 {

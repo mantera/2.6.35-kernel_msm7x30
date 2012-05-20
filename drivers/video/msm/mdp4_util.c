@@ -326,15 +326,13 @@ void mdp4_clear_lcdc(void)
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
 
 	bits = inpdw(MDP_BASE + 0xc0000);
-	if (bits & 0x01) { /* enabled already */
-	    /* FIHTDC-Div2-SW2-BSP, Ming { */
+	if (bits & 0x01) {/* enabled already */
 		/* If LCDC was already enabled in APPSBOOT, 
 		   we should set MDP_OVERLAY0_BLOCK power-on here to keep MDP power status. 
 		   refer to mdp4_overlay_lcdc.c */
 	    mdp_pipe_ctrl(MDP_OVERLAY0_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
-		mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+	    mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
         printk(KERN_INFO "[Display] %s: lcdc enabled already.\n", __func__);
-		/* } FIHTDC-Div2-SW2-BSP, Ming */
 		return;
 	}
 
@@ -551,7 +549,8 @@ if (isr & INTR_OVERLAY0_DONE) {
 		if (isr & INTR_HIST_DONE)
 			complete(&mdp_hist_comp);
 	}
-
+	if (isr & INTR_PRIMARY_READ_PTR)
+		mdp4_mddi_read_ptr_intr();
 out:
 	mdp_is_in_isr = FALSE;
 

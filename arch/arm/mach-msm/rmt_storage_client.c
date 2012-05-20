@@ -1075,6 +1075,20 @@ static int rmt_storage_get_sync_status(struct msm_rpc_client *client)
 	return recv_args.data;
 }
 
+/* Not needed.  5-22-12 -M
+//Div2-SW2-BSP, JOE HSU ,rmt_sync
+int rmt_sync_call(void)
+{
+	int rc;
+	
+	rc = rmt_storage_force_sync();
+//	while ((rmt_storage_get_sync_status() == RMT_STORAGE_NO_ERROR) || timeout == 0) {
+//		  timeout --;
+//		}
+	return rc;
+}
+*/
+
 static int rmt_storage_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	unsigned long vsize = vma->vm_end - vma->vm_start;

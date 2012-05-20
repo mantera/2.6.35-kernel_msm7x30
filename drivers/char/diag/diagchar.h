@@ -165,6 +165,9 @@ struct diagchar_dev {
 	struct work_struct diag_read_smd_qdsp_work;
 	uint8_t *msg_masks;
 	uint8_t *log_masks;
+	//FXPCAYM81 Slate code here
+	uint8_t *saved_log_masks;
+	//Slate Code ends
 	int log_masks_length;
 	uint8_t *event_masks;
 	struct diag_master_table *table;
@@ -178,6 +181,11 @@ struct diagchar_dev {
 	struct diag_request *write_ptr_qdsp_2;
 	int logging_mode;
 	int logging_process_id;
+	//FXPCAYM81 Slate code here
+	int slate_cmd;
+	int slate_log_count;
+	int log_cmd;
+	int log_count;
 #ifdef CONFIG_DIAG_SDIO_PIPE
 	unsigned char *buf_in_sdio;
 	unsigned char *usb_buf_mdm_out;

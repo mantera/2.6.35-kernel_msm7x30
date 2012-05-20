@@ -2,11 +2,11 @@
 #define _PMDBG_H_
 
 enum {
-#ifdef CONFIG_FIH_POWER_LOG
+#ifdef CONFIG_FIH_FXX
 	MSM_PM_DEBUG_FIH_MODULE = 1U << 7,		/* 128 */ /* fast dormancy, packet filter */
 	MSM_PM_DEBUG_FIH_PM = 1U << 8,			/* 256 */ /* wakeup irq */
 	MSM_PM_DEBUG_FIH_CALL_STACK = 1U << 9,	/* 512 */ /* clock, irq */
-#endif	// CONFIG_FIH_POWER_LOG
+#endif	// CONFIG_FIH_FXX
 };
 
 extern int msm_pm_debug_mask;

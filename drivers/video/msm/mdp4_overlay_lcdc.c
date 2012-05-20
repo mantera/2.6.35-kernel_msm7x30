@@ -261,8 +261,13 @@ int mdp_lcdc_on(struct platform_device *pdev)
 			refer to mdp4_util.c */
 		    printk(KERN_INFO "[DISPLAY] %s: LCDC enabled already.\n", __func__);
 		} else {
-		    MDP_OUTP(MDP_BASE + LCDC_BASE, 1);
-		    mdp_pipe_ctrl(MDP_OVERLAY0_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+			MDP_OUTP(MDP_BASE + LCDC_BASE, 1);
+	
+			mdp4_overlay_reg_flush(pipe, 1);	/* workaround for underflow issue */
+			printk(KERN_INFO "[DISPLAY] %s: LCDC register flushed.\n", __func__);
+			
+			mdp_pipe_ctrl(MDP_OVERLAY0_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+			
 		}
 		/* } FIHTDC-Div2-SW2-BSP, Ming */
 	}

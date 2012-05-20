@@ -87,6 +87,7 @@
 #define MCI_SDIOINTROPE		(1 << 25)
 #define MCI_CCSTIMEOUT		(1 << 26)
 
+#define MMCITESTINPUT		0xD4 //sw2-6-1-RH-Wlan_Reset7-00+
 #define MMCICLEAR		0x038
 #define MCI_CMDCRCFAILCLR	(1 << 0)
 #define MCI_DATACRCFAILCLR	(1 << 1)
@@ -275,9 +276,16 @@ struct msmsdcc_host {
 	struct wake_lock	sdio_wlan_lock;
 	struct wake_lock	sdio_wlock;
 	struct wake_lock	sdio_suspend_wlock;
+//DIV5-CONN-MW-POWER SAVING MODE-01+[
+#if defined(CONFIG_FIH_PROJECT_SF4Y6) && defined(CONFIG_FIH_WIMAX_GCT_SDIO)	
+	struct wake_lock	wimax_wakelock;
+         struct work_struct work;
+#endif
+//DIV5-CONN-MW-POWER SAVING MODE-01+]
 	unsigned int    sdcc_suspending;
 
 	unsigned int sdcc_irq_disabled;
+	struct timer_list prog_timer;
 	struct timer_list req_tout_timer;
 	bool sdio_gpio_lpm;
 	bool irq_wake_enabled;
@@ -298,5 +306,16 @@ static inline int msmsdcc_lpm_disable(struct mmc_host *mmc)
 	return msmsdcc_sdio_al_lpm(mmc, false);
 }
 #endif
+
+//DIV5-CONN-MW-POWER SAVING MODE-01+[
+#if defined(CONFIG_FIH_PROJECT_SF4Y6) && defined(CONFIG_FIH_WIMAX_GCT_SDIO)
+#define WiMAX_WAKEUP_HOST_N    142
+#define PMIC_HOST_WAKEUP_WiMAX_N    15 /* PMIC GPIO Number 16 */
+#define WiMAX_V3P8_FET_CTRL_N  148
+#define PM8058_GPIO_PM_TO_SYS(pm_gpio)     (pm_gpio + NR_GPIO_IRQS)
+#endif
+//DIV5-CONN-MW-POWER SAVING MODE-01+]
+
+void debug_print_stats_mmc(struct mmc_host *mmc);	//sw2-6-1-RH-Wlan_Reset7-00+
 
 #endif

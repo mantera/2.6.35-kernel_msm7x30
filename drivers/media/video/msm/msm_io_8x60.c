@@ -815,7 +815,7 @@ int msm_camio_sensor_clk_off(struct platform_device *pdev)
 	struct msm_camera_device_platform_data *camdev = sinfo->pdata;
 	msm_camera_vreg_disable();
 	camdev->camera_gpio_off();
-	return msm_camio_clk_disable(CAMIO_CAM_MCLK_CLK);
+	return 0;
 
 }
 
@@ -846,7 +846,7 @@ int msm_camio_probe_off(struct platform_device *pdev)
 	struct msm_camera_device_platform_data *camdev = sinfo->pdata;
 	msm_camera_vreg_disable();
 	camdev->camera_gpio_off();
-	return msm_camio_clk_disable(CAMIO_CAM_MCLK_CLK);
+	return 0;
 }
 
 int msm_camio_csi_config(struct msm_camera_csi_params *csi_params)

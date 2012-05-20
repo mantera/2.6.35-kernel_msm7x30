@@ -47,6 +47,41 @@
 #include <linux/wakelock.h>
 
 #include <mach/rpc_pmapp.h> // DIV2-SW2-BSP-FBx-CHG
+//Div6-D1-JL-UsbPorting-00+{
+#include "../../../arch/arm/mach-msm/proc_comm.h"
+#include <mach/msm_smd.h>
+#include "../../../arch/arm/mach-msm/smd_private.h"
+
+enum fih_usb_connect{
+	USB_DISCONNECTED = 0,
+	USB_HS_CONNECT_EVENT,
+	USB_CONNECTED,
+	USB_SWITCH_TO_DIAG = 5, // Switch to 0xc000
+	USB_SWITCH_TO_NORMAL,	// Switch to 0xc001
+	USB_SWITCH_TO_ETHERNET,	// Switch to 0xc003, but not supported in SA.
+};
+
+static struct timer_list fih_detect_charger_timer;
+static int fih_charger_connect_detected;
+static void fih_detect_charger_timer_callback( unsigned long data );
+
+bool Dynamic_switch=false;
+int USB_Connect=0;
+int OS_Type=0;       ///0:No OS 1:plug-in USB first run SC_TEST_UNIT_READY 2:Mac OS 3:Microsoft OS
+bool is_switch = false;
+
+//Div6-D1-JL-PidSwitching-00+{
+//For pid switching, just disable this.
+#if 0
+bool switch_enable = false;
+int backup_USB_Connect = USB_DISCONNECTED;
+#endif
+extern bool vbus_online;
+bool usb_check_rndis_switch(void);//SW2-5-3-LL-Peripheral-Tethering_RNDIS-00+
+//Div6-D1-JL-PidSwitching-00+}
+
+//Div6-D1-JL-UsbPorting-00+}
+
 static const char driver_name[] = "msm72k_udc";
 
 /* #define DEBUG */
@@ -129,6 +164,7 @@ static struct timer_list phy_status_timer;
 
 static void usb_do_work(struct work_struct *w);
 static void usb_do_remote_wakeup(struct work_struct *w);
+void cable_status(bool status);    //Div6-D1-JL-UsbPorting-00+
 
 
 #define USB_STATE_IDLE    0
@@ -144,7 +180,7 @@ static void usb_do_remote_wakeup(struct work_struct *w);
 
 #define USB_CHG_DET_DELAY	msecs_to_jiffies(1000)
 #define REMOTE_WAKEUP_DELAY	msecs_to_jiffies(1000)
-#define PHY_STATUS_CHECK_DELAY	(jiffies + msecs_to_jiffies(1000))
+#define PHY_STATUS_CHECK_DELAY	msecs_to_jiffies(1000)
 
 struct usb_info {
 	/* lock for register/queue/device state changes */
@@ -227,6 +263,51 @@ static void flush_endpoint(struct msm_endpoint *ept);
 static void usb_reset(struct usb_info *ui);
 static int usb_ept_set_halt(struct usb_ep *_ep, int value);
 
+static unsigned ulpi_read(struct usb_info *ui, unsigned reg)
+{
+	unsigned ret, timeout = 100000;
+
+
+	/* initiate read operation */
+	writel(ULPI_RUN | ULPI_READ | ULPI_ADDR(reg),
+	       USB_ULPI_VIEWPORT);
+
+	/* wait for completion */
+	while ((readl(USB_ULPI_VIEWPORT) & ULPI_RUN) && (--timeout))
+		cpu_relax();
+
+	if (timeout == 0) {
+		printk(KERN_ERR "ulpi_read: timeout %08x\n",
+			readl(USB_ULPI_VIEWPORT));
+		return 0xffffffff;
+	}
+	ret = ULPI_DATA_READ(readl(USB_ULPI_VIEWPORT));
+
+
+	return ret;
+}
+
+static int ulpi_write(struct usb_info *ui, unsigned val, unsigned reg)
+{
+	unsigned timeout = 10000;
+
+	/* initiate write operation */
+	writel(ULPI_RUN | ULPI_WRITE |
+	       ULPI_ADDR(reg) | ULPI_DATA(val),
+	       USB_ULPI_VIEWPORT);
+
+	/* wait for completion */
+	while ((readl(USB_ULPI_VIEWPORT) & ULPI_RUN) && (--timeout))
+		;
+
+	if (timeout == 0) {
+		dev_err(&ui->pdev->dev, "ulpi_write: timeout\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 static void msm_hsusb_set_speed(struct usb_info *ui)
 {
 	unsigned long flags;
@@ -288,10 +369,18 @@ static inline enum chg_type usb_get_chg_type(struct usb_info *ui)
 		return USB_CHG_TYPE__SDP;
 }
 
+/* DIV5-KERNEL-VH-AC_CHG_CURRENT { */
+#ifdef CONFIG_FIH_CONFIG_GROUP
+    #ifdef CONFIG_FIH_PROJECT_SF4Y6
+        #define USB_WALLCHARGER_CHG_CURRENT 750
+    #else
+        #define USB_WALLCHARGER_CHG_CURRENT 950
+    #endif
+#else
 #define USB_WALLCHARGER_CHG_CURRENT 1800
-/* FIHTDC, Div2-SW2-BSP, Penho, FB0G.B-783 { */
-#define USB_CAR_CHARGER_CHG_CURRENT 500
-/* } FIHTDC, Div2-SW2-BSP, Penho, FB0G.B-783 */
+#endif
+/* DIV5-KERNEL-VH-AC_CHG_CURRENT } */
+#define USB_CAR_CHARGER_CHG_CURRENT 500     //Div6-D1-JL-UsbPorting-00+{
 static int usb_get_max_power(struct usb_info *ui)
 {
 	struct msm_otg *otg = to_msm_otg(ui->xceiv);
@@ -317,12 +406,11 @@ static int usb_get_max_power(struct usb_info *ui)
 	if (temp == USB_CHG_TYPE__WALLCHARGER)
 		return USB_WALLCHARGER_CHG_CURRENT;
 
-/* FIHTDC, Div2-SW2-BSP, Penho, FB0G.B-783 { */
-#ifdef CONFIG_FIH_FXX
-	if (temp == USB_CHG_TYPE__SDP)
+    //Div6-D1-JL-UsbPorting-00+{
+    //For Car kit
+    if (temp == USB_CHG_TYPE__SDP)
 		return USB_CAR_CHARGER_CHG_CURRENT;
-#endif	// CONFIG_FIH_FXX
-/* } FIHTDC, Div2-SW2-BSP, Penho, FB0G.B-783 */
+    //Div6-D1-JL-UsbPorting-00+}
 
 	if (suspended || !configured)
 		return 0;
@@ -332,26 +420,25 @@ static int usb_get_max_power(struct usb_info *ui)
 
 static int usb_phy_stuck_check(struct usb_info *ui)
 {
+	unsigned long flags;
 	/*
 	 * write some value (0xAA) into scratch reg (0x16) and read it back,
 	 * If the read value is same as written value, means PHY is normal
 	 * otherwise, PHY seems to have stuck.
 	 */
 
-	if (ui->xceiv->io_ops->write) {
-		if (ui->xceiv->io_ops->write(ui->xceiv, 0xAA, 0x16) == -1) {
-			dev_dbg(&ui->pdev->dev,
-				"%s(): ulpi write timeout\n", __func__);
-			return -EIO;
-		}
+	spin_lock_irqsave(&ui->lock, flags);
+	if (ulpi_write(ui, 0xAA, 0x16) == -1) {
+		dev_dbg(&ui->pdev->dev,
+			"%s(): ulpi write timeout\n", __func__);
+		return -EIO;
 	}
-	if (ui->xceiv->io_ops->read) {
-		if (ui->xceiv->io_ops->read(ui->xceiv, 0x16) != 0xAA) {
-			dev_dbg(&ui->pdev->dev,
-				"%s(): read value is incorrect\n", __func__);
-			return -EIO;
-		}
+	if (ulpi_read(ui, 0x16) != 0xAA) {
+		dev_dbg(&ui->pdev->dev,
+			"%s(): read value is incorrect\n", __func__);
+		return -EIO;
 	}
+	spin_unlock_irqrestore(&ui->lock, flags);
 	return 0;
 }
 
@@ -380,7 +467,7 @@ static void usb_phy_stuck_recover(struct work_struct *w)
 		del_timer_sync(&otg->id_timer);
 #endif
 		ui->phy_fail_count++;
-		dev_err(&ui->pdev->dev,
+		dev_info(&ui->pdev->dev,
 				"%s():PHY stuck, resetting HW\n", __func__);
 		/*
 		 * PHY seems to have stuck,
@@ -415,6 +502,7 @@ static void usb_chg_stop(struct work_struct *w)
 		otg_set_power(ui->xceiv, 0);
 }
 
+extern int fih_bluetooth_status;
 static void usb_chg_detect(struct work_struct *w)
 {
 	struct usb_info *ui = container_of(w, struct usb_info, chg_det.work);
@@ -446,7 +534,9 @@ static void usb_chg_detect(struct work_struct *w)
 	 * */
 	if (temp == USB_CHG_TYPE__WALLCHARGER) {
 		pm_runtime_put_sync(&ui->pdev->dev);
-		wake_unlock(&ui->wlock);
+		setup_timer( &fih_detect_charger_timer, fih_detect_charger_timer_callback, 0 );
+		mod_timer( &fih_detect_charger_timer, jiffies + msecs_to_jiffies(1000) ); //1 seconds
+		//wake_unlock(&ui->wlock);
 	}
 }
 
@@ -460,23 +550,6 @@ static int usb_ep_get_stall(struct msm_endpoint *ept)
 		return (CTRL_TXS & n) ? 1 : 0;
 	else
 		return (CTRL_RXS & n) ? 1 : 0;
-}
-
-static void ulpi_write(struct usb_info *ui, unsigned val, unsigned reg)
-{
-	unsigned timeout = 10000;
-
-	/* initiate write operation */
-	writel(ULPI_RUN | ULPI_WRITE |
-	       ULPI_ADDR(reg) | ULPI_DATA(val),
-	       USB_ULPI_VIEWPORT);
-
-	/* wait for completion */
-	while ((readl(USB_ULPI_VIEWPORT) & ULPI_RUN) && (--timeout))
-		;
-
-	if (timeout == 0)
-		dev_err(&ui->pdev->dev, "ulpi_write: timeout\n");
 }
 
 static void init_endpoints(struct usb_info *ui)
@@ -1347,6 +1420,24 @@ static irqreturn_t usb_interrupt(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+//Div6-D1-JL-UsbPorting-00+{
+void cable_status(bool status)
+{
+	if(status) {
+		printk("usb cable connected\n");
+        vbus_online = true;                    //Div6-D1-JL-PidSwitching-00+
+	} else {		
+		printk(KERN_INFO "usb cable disconnected\n");
+		OS_Type = 0;
+		is_switch = false;      
+
+        //Div6-D1-JL-PidSwitching-00+{
+		vbus_online = false;
+        //Div6-D1-JL-PidSwitching-00+}
+	}
+}
+//Div6-D1-JL-UsbPorting-00+}
+
 static void usb_prepare(struct usb_info *ui)
 {
 	spin_lock_init(&ui->lock);
@@ -1387,10 +1478,13 @@ static void usb_reset(struct usb_info *ui)
 	 * PHY reset takes minimum 100 msec. Hence reset only link
 	 * during HNP. Reset PHY and link in B-peripheral mode.
 	 */
+	#if 0//SW2-5-3-LL-Peripheral-Tethering_RNDIS-00+
 	if (ui->gadget.is_a_peripheral)
 		otg->reset(ui->xceiv, 0);
 	else
 		otg->reset(ui->xceiv, 1);
+	#endif
+	otg->reset(ui->xceiv, 0);//SW2-5-3-LL-Peripheral-Tethering_RNDIS-00+ always peripheral mode to avoid do phy_clk_reset that will trigger usb interrupt
 
 	/* set usb controller interrupt threshold to zero*/
 	writel((readl(USB_USBCMD) & ~USBCMD_ITC_MASK) | USBCMD_ITC(0),
@@ -1532,7 +1626,7 @@ static void usb_do_work(struct work_struct *w)
 			}
 			break;
 		case USB_STATE_ONLINE:
-			if (atomic_read(&ui->offline_pending)) {
+			if (atomic_read(&ui->offline_pending) && !usb_check_rndis_switch()) {//SW2-5-3-LL-Peripheral-Tethering_RNDIS-00*
 				switch_set_state(&ui->sdev, 0);
 				atomic_set(&ui->offline_pending, 0);
 			}
@@ -1601,19 +1695,18 @@ static void usb_do_work(struct work_struct *w)
 				if (maxpower < 0)
 					break;
 
-/* FIHTDC, Div2-SW2-BSP, Penho, FB0G.B-783 { */
-/* DUT will stop charging after receiving USB suspend interrupt.
-*	 This behavior makes two situations that DUT can not be charged.
-*	1. An power-offed DUT boot up with car charger inserted and a suspending PC.
-*	2. An DUT plug with a PC, then PC enters suspend mode.
-*	To prevent these situations, disable this behavior, and let DUT draws 500mA when charger type is HOST_PC.
-*	Note. This modification might violate USB 2.0 spec, but FA3 & Nexus one have the same behavior, too.
-*   Ref. [SQ01.B-495]
-*/
-#ifndef CONFIG_FIH_FXX
-				otg_set_power(ui->xceiv, 0);
-#endif	// CONFIG_FIH_FXX
-/* } FIHTDC, Div2-SW2-BSP, Penho, FB0G.B-783 */
+                //Div6-D1-JL-UsbPorting-00+{
+                //For car kit
+                /* DUT will stop charging after receiving USB suspend interrupt.
+                              * This behavior makes two situations that DUT can not be charged.
+				*1. An power-offed DUT boot up with car charger inserted and a suspending PC.
+				*2. An DUT plug with a PC, then PC enters suspend mode.
+				*To prevent these situations, disable this behavior, and let DUT draws 500mA when charger type is HOST_PC.
+				*Note. This modification might violate USB 2.0 spec, but FA3 & Nexus one have the same behavior, too.
+				* */
+                //otg_set_power(ui->xceiv, 0);
+                //Div6-D1-JL-UsbPorting-00+}
+                
 				/* To support TCXO during bus suspend
 				 * This might be dummy check since bus suspend
 				 * is not implemented as of now
@@ -1716,9 +1809,11 @@ void msm_hsusb_set_vbus_state(int online)
 		goto out;
 
 	if (online) {
+		printk(KERN_INFO "vbus online.\n");    //Div6-D1-JL-UsbPorting-00+
 		ui->usb_state = USB_STATE_POWERED;
 		ui->flags |= USB_FLAG_VBUS_ONLINE;
 	} else {
+		printk(KERN_INFO "vbus offline.\n");   //Div6-D1-JL-UsbPorting-00+
 		ui->gadget.speed = USB_SPEED_UNKNOWN;
 		ui->usb_state = USB_STATE_NOTATTACHED;
 		ui->flags |= USB_FLAG_VBUS_OFFLINE;
@@ -1902,21 +1997,11 @@ static void usb_debugfs_init(struct usb_info *ui)
 	if (IS_ERR(dent))
 		return;
 
-/* FIHTDC, Div2-SW2-BSP, Penho, FB0G.B-565 { */
-#ifdef CONFIG_FIH_FXX
 	debugfs_create_file("status", 0444, dent, ui, &debug_stat_ops);
 	debugfs_create_file("reset", 0220, dent, ui, &debug_reset_ops);
 	debugfs_create_file("cycle", 0220, dent, ui, &debug_cycle_ops);
 	debugfs_create_file("release_wlocks", 0664, dent, ui,
 						&debug_wlocks_ops);
-#else	// CONFIG_FIH_FXX
-	debugfs_create_file("status", 0444, dent, ui, &debug_stat_ops);
-	debugfs_create_file("reset", 0222, dent, ui, &debug_reset_ops);
-	debugfs_create_file("cycle", 0222, dent, ui, &debug_cycle_ops);
-	debugfs_create_file("release_wlocks", 0666, dent, ui,
-						&debug_wlocks_ops);
-#endif	// CONFIG_FIH_FXX
-/* } FIHTDC, Div2-SW2-BSP, Penho, FB0G.B-565 */
 }
 #else
 static void usb_debugfs_init(struct usb_info *ui) {}
@@ -2156,6 +2241,33 @@ static int msm72k_get_frame(struct usb_gadget *_gadget)
 	return (readl(USB_FRINDEX) >> 3) & 0x000007FF;
 }
 
+static void fih_detect_charger_timer_callback( unsigned long data )
+{
+	struct usb_info *ui = the_usb_info;
+	struct msm_otg *otg = to_msm_otg(ui->xceiv);
+
+	if (!ui) {
+		pr_err("%s called before driver initialized\n", __func__);
+		return;
+	}
+
+	//printk(KERN_INFO "%s:%ld ui->usb_state=%d, ui->state=%d\n", __FUNCTION__, jiffies, ui->usb_state, ui->state);
+
+	// If charger is not connected before the timer expired
+	if (atomic_read(&otg->chg_type) == USB_CHG_TYPE__WALLCHARGER)
+	{
+		//printk(KERN_INFO "%s: %ld: Wall Charger Detected \n", __FUNCTION__, jiffies);
+		wake_lock(&ui->wlock);
+		msm_hsusb_set_vbus_state(1);
+		mod_timer( &fih_detect_charger_timer, jiffies + msecs_to_jiffies(1000) ); //1 seconds
+	}
+	else 
+	{
+		//printk(KERN_INFO "%s: %ld: Wall Charger NOT Detected \n", __FUNCTION__, jiffies);
+		del_timer( &fih_detect_charger_timer );
+	}
+}
+
 /* VBUS reporting logically comes from a transceiver */
 static int msm72k_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
 {
@@ -2164,7 +2276,11 @@ static int msm72k_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
 
 	if (is_active || atomic_read(&otg->chg_type)
 					 == USB_CHG_TYPE__WALLCHARGER)
+	{
+		fih_charger_connect_detected = 1;
+		printk(KERN_INFO "msm72k_udc_vbus_session: detect Wall Charger.\n");//Div2-3-5-Peripheral-LL-UsbPorting-01+
 		wake_lock(&ui->wlock);
+	}
 
 	msm_hsusb_set_vbus_state(is_active);
 	return 0;
@@ -2460,6 +2576,7 @@ static int msm72k_probe(struct platform_device *pdev)
 	struct msm_otg *otg;
 	int retval;
 
+	fih_charger_connect_detected = 0;
 	dev_dbg(&pdev->dev, "msm72k_probe\n");
 	ui = kzalloc(sizeof(struct usb_info), GFP_KERNEL);
 	if (!ui)
@@ -2535,6 +2652,11 @@ static int msm72k_probe(struct platform_device *pdev)
 	/* Setup phy stuck timer */
 	if (ui->pdata && ui->pdata->is_phy_status_timer_on)
 		setup_timer(&phy_status_timer, usb_phy_status_check_timer, 0);
+
+	setup_timer( &fih_detect_charger_timer, fih_detect_charger_timer_callback, 0 );
+	retval = mod_timer( &fih_detect_charger_timer, jiffies + msecs_to_jiffies(1000) ); //1 seconds
+	if (retval) printk("%s: Error in mod_timer\n", __FUNCTION__);
+
 	return 0;
 }
 

@@ -1574,32 +1574,38 @@ static int msm_get_sensor_info(struct msm_sync *sync, void __user *arg)
 	memcpy(&info.name[0],
 		sdata->sensor_name,
 		MAX_SENSOR_NAME);
-	if(sdata->parameters_data!=NULL)
-	{
-		info.autoexposure=sdata->parameters_data->autoexposure;
-		info.effects=sdata->parameters_data->effects;
-		info.wb=sdata->parameters_data->wb;
-		info.antibanding=sdata->parameters_data->antibanding;
-		info.flash=sdata->parameters_data->flash;
-		info.focus=sdata->parameters_data->focus;
-		info.ISO=sdata->parameters_data->ISO;
-		info.lensshade=sdata->parameters_data->lensshade;
-		info.scenemode=sdata->parameters_data->scenemode;
-		info.continuous_af=sdata->parameters_data->continuous_af;
-		info.touchafaec=sdata->parameters_data->touchafaec;
-		info.frame_rate_modes=sdata->parameters_data->frame_rate_modes;
-		info.max_brightness=sdata->parameters_data->max_brightness;
-		info.max_contrast=sdata->parameters_data->max_contrast;
-		info.max_saturation=sdata->parameters_data->max_saturation;
-		info.max_sharpness=sdata->parameters_data->max_sharpness;
-		info.min_brightness=sdata->parameters_data->min_brightness;
-		info.min_contrast=sdata->parameters_data->min_contrast;
-		info.min_saturation=sdata->parameters_data->min_saturation;
-		info.min_sharpness=sdata->parameters_data->min_sharpness;
-	}
+//Div6D1-CL-Camera-SensorInfo-01+{
+    if(sdata->parameters_data!=NULL)
+    {
+        //Div6D1-CL-Camera-SensorInfo-02*{
+        info.autoexposure=sdata->parameters_data->autoexposure;
+        info.effects=sdata->parameters_data->effects;
+        info.wb=sdata->parameters_data->wb;
+        info.antibanding=sdata->parameters_data->antibanding;
+        info.flash=sdata->parameters_data->flash;
+        info.focus=sdata->parameters_data->focus;
+        info.ISO=sdata->parameters_data->ISO;
+        info.lensshade=sdata->parameters_data->lensshade;
+        info.scenemode=sdata->parameters_data->scenemode;
+        info.continuous_af=sdata->parameters_data->continuous_af;
+        info.touchafaec=sdata->parameters_data->touchafaec;
+        info.frame_rate_modes=sdata->parameters_data->frame_rate_modes;
+        //Div6D1-CL-Camera-SensorInfo-02*}
+
+        info.max_brightness=sdata->parameters_data->max_brightness;
+        info.max_contrast=sdata->parameters_data->max_contrast;
+        info.max_saturation=sdata->parameters_data->max_saturation;
+        info.max_sharpness=sdata->parameters_data->max_sharpness;
+        
+        info.min_brightness=sdata->parameters_data->min_brightness;
+        info.min_contrast=sdata->parameters_data->min_contrast;
+        info.min_saturation=sdata->parameters_data->min_saturation;
+        info.min_sharpness=sdata->parameters_data->min_sharpness;
+    }
+//Div6D1-CL-Camera-SensorInfo-01+}
 	info.flash_enabled = sdata->flash_data->flash_type !=
 		MSM_CAMERA_FLASH_NONE;
-	info.sensor_Orientation= sdata->sensor_Orientation;
+    info.sensor_Orientation= sdata->sensor_Orientation;//Div6D1-CL-Camera-SensorInfo-00+
 
 	/* copy back to user space */
 	if (copy_to_user((void *)arg,
@@ -2423,6 +2429,12 @@ static long msm_ioctl_control(struct file *filep, unsigned int cmd,
 	case MSM_CAM_IOCTL_GET_CAMERA_INFO:
 		rc = msm_get_camera_info(argp);
 		break;
+	//Div6D1-HL-Camera-BringUp-00+{
+	case MSM_CAM_IOCTL_GET_FIH_SENSOR_INFO:
+		rc = msm_get_sensor_info(pmsm->sync, argp);
+		break;
+	//Div6D1-HL-Camera-BringUp-00+}
+
 	default:
 		rc = msm_ioctl_common(pmsm, cmd, argp);
 		break;

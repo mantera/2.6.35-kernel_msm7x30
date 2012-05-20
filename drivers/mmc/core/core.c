@@ -42,11 +42,7 @@
 static struct workqueue_struct *workqueue;
 static struct wake_lock mmc_delayed_work_wake_lock;
 
-/* FIHTDC, Div2-SW2-BSP, Penho, UsbPorting { */
-#ifdef CONFIG_FIH_FXX
-bool storage_state = false;
-#endif	// CONFIG_FIH_FXX
-/* } FIHTDC, Div2-SW2-BSP, Penho, UsbPorting */
+bool storage_state=false;    //Div6-D1-JL-UsbPorting-00+
 
 /*
  * Enabling software CRCs on the data blocks can be a significant (30%)
@@ -155,8 +151,55 @@ void mmc_request_done(struct mmc_host *host, struct mmc_request *mrq)
 				mrq->stop->resp[2], mrq->stop->resp[3]);
 		}
 
-		if (mrq->done)
+//sw2-6-1-RH-Wlan_Reset7-00+[
+		if (mrq->done) {
+			if (host->update_stats) {
+				if (host->stats_err) {
+					host->id = 0;
+					host->stats_overflow = 0;
+					host->stats_err = 0;
+				} else if (++host->id == 50) {
+					host->id = 0;
+					host->stats_overflow = 1;
+				}
+				host->entries[host->id].req_start = ktime_set(0,0);
+				host->entries[host->id].timer_start = ktime_set(0,0);
+				host->entries[host->id].opcode = 0;
+				host->entries[host->id].args = 0;
+				host->entries[host->id].mci_sts = 0;
+				host->entries[host->id].mci_resp0 = 0;
+				host->entries[host->id].read_data_cnt = 0;
+				host->entries[host->id].req_rsize = 0;
+				host->entries[host->id].pio_simulated = 0;
+				host->entries[host->id].sim_no_rxactive = 0;
+				host->entries[host->id].t_dataend = ktime_set(0,0);
+				host->entries[host->id].t_rxactive = ktime_set(0,0);
+				host->entries[host->id].t_rxavail = ktime_set(0,0);
+				host->entries[host->id].mci_sts_before_datactl = 0;
+				host->entries[host->id].mci_mask0_before_datactl = 0;
+				host->entries[host->id].mci_datactl_before_enabling_datactl = 0;
+				host->entries[host->id].mci_datatimer_before_datactl = 0;
+				host->entries[host->id].mci_datalen_before_datactl = 0;
+				host->entries[host->id].mci_pwr_before_datactl = 0;
+				host->entries[host->id].mci_clk_before_datactl = 0;
+				host->entries[host->id].mci_cmd_before_datactl = 0;
+				host->entries[host->id].mci_cmd_after_enabling_cpsm = 0;
+				host->entries[host->id].mci_data_ctl_after_dpsm = 0;
+				host->entries[host->id].mci_sts_after_dataend = 0;
+				host->entries[host->id].mci_mask0_after_dataend = 0;
+				host->entries[host->id].mci_datactl_after_dataend = 0;
+				host->entries[host->id].mci_datatimer_after_dataend = 0;
+				host->entries[host->id].mci_datalen_after_dataend = 0;
+				host->entries[host->id].mci_pwr_after_dataend = 0;
+				host->entries[host->id].mci_clk_after_dataend = 0;
+				host->entries[host->id].mci_cmd_after_dataend = 0;
+				host->entries[host->id].mci_sts_after_reading_alldata = 0;
+				host->entries[host->id].mci_sts_after_enabling_dpsm = 0;
+				host->entries[host->id].mci_test_input = 0;
+			}
 			mrq->done(mrq);
+		}
+//sw2-6-1-RH-Wlan_Reset7-00+]
 	}
 }
 
@@ -221,6 +264,12 @@ mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 		host->perf.start = ktime_get();
 #endif
 	}
+//sw2-6-1-RH-Wlan_Reset7-00+[
+	if (mrq->cmd->opcode == 53 || mrq->cmd->opcode == 52)
+		host->update_stats = 1;
+	else
+		host->update_stats = 0;
+//sw2-6-1-RH-Wlan_Reset7-00+]
 	host->ops->request(host, mrq);
 }
 
@@ -238,7 +287,7 @@ static void mmc_wait_done(struct mmc_request *mrq)
  *	for the command to complete. Does not attempt to parse the
  *	response.
  */
-void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
+int mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)	//sw2-6-1-RH-Wlan_Reset7-00*
 {
 	DECLARE_COMPLETION_ONSTACK(complete);
 
@@ -247,7 +296,10 @@ void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 
 	mmc_start_request(host, mrq);
 
-	wait_for_completion_io(&complete);
+//sw2-6-1-RH-Wlan_Reset7-00*[
+//	wait_for_completion(&complete);
+	return wait_for_completion_timeout(&complete, msecs_to_jiffies(2500));
+//sw2-6-1-RH-Wlan_Reset7-00*]
 }
 
 EXPORT_SYMBOL(mmc_wait_for_req);
@@ -1246,15 +1298,22 @@ void mmc_rescan(struct work_struct *work)
 	mmc_power_off(host);
 
 out:
-/* FIHTDC, Div2-SW2-BSP, Penho, UsbPorting { */
-#ifdef CONFIG_FIH_FXX
-	// This is used for checking that SD card is inserted or not.
-	// By another project, the index number may be different. (mmc interface index)
+    //Div6-D1-JL-UsbPorting-00+{
+    //This is used for checking that SD card is inserted or not.
+    //By another project, the index number may be different. (mmc interface index)
 	if (host->index == 2)
-		storage_state = (host->bus_ops == NULL) ? false : true;
-#endif	// CONFIG_FIH_FXX
-/* } FIHTDC, Div2-SW2-BSP, Penho, UsbPorting */
-
+	{
+		if (host->bus_ops == NULL)
+        {      
+			storage_state = false;		
+        }
+		else			  	
+        {      
+			storage_state = true;		
+        }
+	}
+	//Div6-D1-JL-UsbPorting-00+}
+	
 	if (extend_wakelock)
 		wake_lock_timeout(&mmc_delayed_work_wake_lock, HZ / 2);
 	else

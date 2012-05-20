@@ -2537,6 +2537,14 @@ config FB_MSM_MDDI_PRISM_WVGA
 	---help---
 	  Support for MDDI Prism WVGA (800x480) panel
 
+# SW2-6-MM-JH-SF5_Display_Porting-00+
+config FB_MSM_MDDI_TOSHIBA_FWVGA_PORTRAIT
+	bool "MDDI Toshiba FWVGA Portrait Panel"
+	select FB_MSM_MDDI
+	---help---
+	  Support for MDDI Toshiba FWVGA (480x854) panel
+# SW2-6-MM-JH-SF5_Display_Porting-00-
+
 config FB_MSM_MDDI_TOSHIBA_WVGA_PORTRAIT
 	bool "MDDI Toshiba WVGA Portrait Panel"
 	select FB_MSM_MDDI_TOSHIBA_COMMON

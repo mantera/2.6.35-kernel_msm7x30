@@ -42,6 +42,7 @@
 #include <linux/syscalls.h>
 #include <linux/kprobes.h>
 #include <linux/user_namespace.h>
+#include <linux/delay.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -77,6 +78,8 @@
 #ifndef SET_TSC_CTL
 # define SET_TSC_CTL(a)		(-EINVAL)
 #endif
+
+//Div2-SW2-BSP, JOE HSU ,rmt_sync
 
 /*
  * this is where the system-wide overflow UID and GID are defined, for
@@ -404,25 +407,20 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 		break;
 
 	case LINUX_REBOOT_CMD_HALT:
-/* Div2-SW2-BSP, JOE HSU, direct power off { */
-    printk(KERN_EMERG "test ... LINUX_REBOOT_CMD_HALT\n");
-    pm_power_off();
-		do_exit(0);
-		break;
-/* Div2-SW2-BSP, JOE HSU, direct power off } */		
-/*		
 		kernel_halt();
+		unlock_kernel();
 		do_exit(0);
 		panic("cannot halt");
-*/				
 
 	case LINUX_REBOOT_CMD_POWER_OFF:
 		kernel_power_off();
+		unlock_kernel();
 		do_exit(0);
 		break;
 
 	case LINUX_REBOOT_CMD_RESTART2:
 		if (strncpy_from_user(&buffer[0], arg, sizeof(buffer) - 1) < 0) {
+			unlock_kernel();
 			ret = -EFAULT;
 			break;
 		}

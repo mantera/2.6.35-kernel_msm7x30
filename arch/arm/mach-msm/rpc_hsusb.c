@@ -397,7 +397,7 @@ int msm_chg_usb_charger_connected(uint32_t device)
 		pr_err("%s: charger_connected failed! rc = %d\n",
 			__func__, rc);
 	} else
-		pr_debug("msm_chg_usb_charger_connected\n");
+        pr_info("msm_chg_usb_charger_connected\n");
 
 	return rc;
 }
@@ -421,7 +421,7 @@ int msm_chg_usb_i_is_available(uint32_t sample)
 		pr_err("%s: charger_i_available failed! rc = %d\n",
 			__func__, rc);
 	} else
-		pr_debug("msm_chg_usb_i_is_available(%u)\n", sample);
+        pr_info("msm_chg_usb_i_is_available(%u)\n", sample);
 
 	return rc;
 }
@@ -443,7 +443,7 @@ int msm_chg_usb_i_is_not_available(void)
 		pr_err("%s: charger_i_not_available failed! rc ="
 			"%d \n", __func__, rc);
 	} else
-		pr_debug("msm_chg_usb_i_is_not_available\n");
+        pr_info("msm_chg_usb_i_is_not_available\n");
 
 	return rc;
 }
@@ -465,7 +465,7 @@ int msm_chg_usb_charger_disconnected(void)
 		pr_err("%s: charger_disconnected failed! rc = %d\n",
 			__func__, rc);
 	} else
-		pr_debug("msm_chg_usb_charger_disconnected\n");
+        pr_info("msm_chg_usb_charger_disconnected\n");
 
 	return rc;
 }

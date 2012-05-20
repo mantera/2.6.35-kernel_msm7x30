@@ -32,6 +32,12 @@
 #include <mach/qdsp5v2/mi2s.h>
 #include <mach/qdsp5v2/audio_acdb_def.h>
 
+//Div2-SW5-BSP-FD1-Acoustic-00+{
+#include "../../../arch/arm/mach-msm/smd_private.h"
+#include "../../../arch/arm/mach-msm/proc_comm.h"
+//Div2-SW5-BSP-FD1-Acoustic-00+}
+
+
 /* define the value for BT_SCO */
 #define BT_SCO_PCM_CTL_VAL (PCM_CTL__RPCM_WIDTH__LINEAR_V |\
 				PCM_CTL__TPCM_WIDTH__LINEAR_V)
@@ -469,10 +475,10 @@ static struct snddev_icodec_data snddev_ihs_ffa_stereo_rx_data = {
 	.voltage_off = msm_snddev_hsed_voltage_off,
 	//SW2-6-MM-RC-SFX-VOL-TUNING-01*{
 	#ifdef CONFIG_FIH_PROJECT_SF4Y6
-		.max_voice_rx_vol[VOC_NB_INDEX] = -900,     //SW5-MM-DL-AudioTuning-00
-		.min_voice_rx_vol[VOC_NB_INDEX] = -2900,    //SW5-MM-DL-AudioTuning-00
-		.max_voice_rx_vol[VOC_WB_INDEX] = -900,     //SW5-MM-DL-AudioTuning-00
-		.min_voice_rx_vol[VOC_WB_INDEX] = -2900,    //SW5-MM-DL-AudioTuning-00   
+		.max_voice_rx_vol[VOC_NB_INDEX] = -400,     //SW5-MM-DL-AudioTuning-00
+		.min_voice_rx_vol[VOC_NB_INDEX] = -2400,    //SW5-MM-DL-AudioTuning-00
+		.max_voice_rx_vol[VOC_WB_INDEX] = -400,     //SW5-MM-DL-AudioTuning-00
+		.min_voice_rx_vol[VOC_WB_INDEX] = -2400,    //SW5-MM-DL-AudioTuning-00   
 	#elif defined CONFIG_FIH_PROJECT_SF4V5
 		.max_voice_rx_vol[VOC_NB_INDEX] = -900,      
 		.min_voice_rx_vol[VOC_NB_INDEX] = -2900,   
@@ -497,6 +503,30 @@ static struct platform_device msm_ihs_ffa_stereo_rx_device = {
 	.id = 4,
 	.dev = { .platform_data = &snddev_ihs_ffa_stereo_rx_data },
 };
+
+//Div2-SW5-BSP-FD1-Acoustic-00+{
+static struct snddev_icodec_data snddev_ihs_fd1_stereo_rx_data = {
+	.capability = (SNDDEV_CAP_RX | SNDDEV_CAP_VOICE),
+	.name = "headset_stereo_rx",
+	.copp_id = 0,
+	.acdb_id = ACDB_ID_HEADSET_SPKR_STEREO,
+	.profile = &ihs_ffa_stereo_rx_profile,
+	.channel_mode = 2,
+	.default_sample_rate = 48000,
+	.voltage_on = msm_snddev_hsed_voltage_on,
+	.voltage_off = msm_snddev_hsed_voltage_off,
+	.max_voice_rx_vol[VOC_NB_INDEX] = 600,
+	.min_voice_rx_vol[VOC_NB_INDEX] = -1200,
+	.max_voice_rx_vol[VOC_WB_INDEX] = 600,
+	.min_voice_rx_vol[VOC_WB_INDEX] = -1200,
+};
+
+static struct platform_device msm_ihs_fd1_stereo_rx_device = {
+	.name = "snddev_icodec",
+	.id = 4,
+	.dev = { .platform_data = &snddev_ihs_fd1_stereo_rx_data },
+};
+//Div2-SW5-BSP-FD1-Acoustic-00+}
 
 static struct adie_codec_action_unit ihs_ffa_mono_rx_48KHz_osr256_actions[] =
 	HEADSET_RX_CAPLESS_48000_OSR_256;
@@ -691,10 +721,10 @@ static struct snddev_icodec_data snddev_ispeaker_rx_data = {
 		.max_voice_rx_vol[VOC_WB_INDEX] = -400,    //MM-RC-SF8audiotuning-01*  
 		.min_voice_rx_vol[VOC_WB_INDEX] = -1900,   //MM-RC-SF8audiotuning-01*
 	#else
-		.max_voice_rx_vol[VOC_NB_INDEX] = 0,
-		.min_voice_rx_vol[VOC_NB_INDEX] = -2400,
-		.max_voice_rx_vol[VOC_WB_INDEX] = 0,
-		.min_voice_rx_vol[VOC_WB_INDEX] = -2400,
+		.max_voice_rx_vol[VOC_NB_INDEX] = 600,      // 900,
+		.min_voice_rx_vol[VOC_NB_INDEX] = -1400,    // -600,
+		.max_voice_rx_vol[VOC_WB_INDEX] = 600,      // 900,
+		.min_voice_rx_vol[VOC_WB_INDEX] = -1400,    // -600,
 	#endif
 	//SW2-6-MM-RC-SFX-VOL-TUNING-01*}
 };
@@ -906,6 +936,7 @@ static struct platform_device msm_ifmradio_ffa_headset_device = {
 	.dev = { .platform_data = &snddev_ifmradio_ffa_headset_data },
 };
 
+//Div2-SW5-BSP-FD1-Acoustic-00+{
 static struct snddev_ecodec_data snddev_bt_sco_earpiece_data = {
 	.capability = (SNDDEV_CAP_RX | SNDDEV_CAP_VOICE),
 	.name = "bt_sco_rx",
@@ -920,6 +951,7 @@ static struct snddev_ecodec_data snddev_bt_sco_earpiece_data = {
 	.max_voice_rx_vol[VOC_WB_INDEX] = 600,
 	.min_voice_rx_vol[VOC_WB_INDEX] = -900,
 };
+//Div2-SW5-BSP-FD1-Acoustic-00+}
 
 static struct snddev_ecodec_data snddev_bt_sco_mic_data = {
 	.capability = (SNDDEV_CAP_TX | SNDDEV_CAP_VOICE),
@@ -1511,10 +1543,10 @@ static struct snddev_icodec_data snddev_iearpiece_ffa_data = {
 	.pamp_off = NULL,
 	//SW2-6-MM-RC-SFX-VOL-TUNING-01*{
 	#ifdef CONFIG_FIH_PROJECT_SF4Y6
-		.max_voice_rx_vol[VOC_NB_INDEX] = -600,      //SW5-MM-DL-AudioTuning-00
-		.min_voice_rx_vol[VOC_NB_INDEX] = -2100,     //SW5-MM-DL-AudioTuning-00
-		.max_voice_rx_vol[VOC_WB_INDEX] = -600,      //SW5-MM-DL-AudioTuning-00
-		.min_voice_rx_vol[VOC_WB_INDEX] = -2100,     //SW5-MM-DL-AudioTuning-00
+		.max_voice_rx_vol[VOC_NB_INDEX] = -900,      //SW5-MM-DL-AudioTuning-00
+		.min_voice_rx_vol[VOC_NB_INDEX] = -2900,     //SW5-MM-DL-AudioTuning-00
+		.max_voice_rx_vol[VOC_WB_INDEX] = -900,      //SW5-MM-DL-AudioTuning-00
+		.min_voice_rx_vol[VOC_WB_INDEX] = -2900,     //SW5-MM-DL-AudioTuning-00
 	#elif defined CONFIG_FIH_PROJECT_SF4V5
 		.max_voice_rx_vol[VOC_NB_INDEX] = -600,      
 		.min_voice_rx_vol[VOC_NB_INDEX] = -2100,   
@@ -1526,10 +1558,10 @@ static struct snddev_icodec_data snddev_iearpiece_ffa_data = {
 		.max_voice_rx_vol[VOC_WB_INDEX] = -600,      //MM-RC-SF8audiotuning-00*
 		.min_voice_rx_vol[VOC_WB_INDEX] = -2100,   //MM-RC-SF8audiotuning-00*
 	#else
-		.max_voice_rx_vol[VOC_NB_INDEX] = 300,
-		.min_voice_rx_vol[VOC_NB_INDEX] = -2700,
-		.max_voice_rx_vol[VOC_WB_INDEX] = 300,
-		.min_voice_rx_vol[VOC_WB_INDEX] = -2700,
+		.max_voice_rx_vol[VOC_NB_INDEX] = 0,
+		.min_voice_rx_vol[VOC_NB_INDEX] = -2400,
+		.max_voice_rx_vol[VOC_WB_INDEX] = 0,
+		.min_voice_rx_vol[VOC_WB_INDEX] = -2400,
 	#endif
 	//SW2-6-MM-RC-SFX-VOL-TUNING-01*}
 };
@@ -1541,6 +1573,32 @@ static struct platform_device msm_iearpiece_ffa_device = {
 	.id = 19,
 	.dev = { .platform_data = &snddev_iearpiece_ffa_data },
 };
+
+//Div2-SW5-BSP-FD1-Acoustic-00+{
+static struct snddev_icodec_data snddev_iearpiece_fd1_data = {
+	.capability = (SNDDEV_CAP_RX | SNDDEV_CAP_VOICE),
+	.name = "handset_rx",
+	.copp_id = 0,
+	.acdb_id = ACDB_ID_HANDSET_SPKR,
+	.profile = &iearpiece_ffa_profile,
+	.channel_mode = 1,
+	.pmctl_id = NULL,
+	.pmctl_id_sz = 0,
+	.default_sample_rate = 48000,
+	.pamp_on = NULL,
+	.pamp_off = NULL,
+	.max_voice_rx_vol[VOC_NB_INDEX] = 0,
+	.min_voice_rx_vol[VOC_NB_INDEX] = -2400,
+	.max_voice_rx_vol[VOC_WB_INDEX] = 0,
+	.min_voice_rx_vol[VOC_WB_INDEX] = -2400,
+};
+
+static struct platform_device msm_iearpiece_fd1_device = {
+	.name = "snddev_icodec",
+	.id = 19,
+	.dev = { .platform_data = &snddev_iearpiece_fd1_data },
+};
+//Div2-SW5-BSP-FD1-Acoustic-00+}
 
 static struct adie_codec_action_unit imic_ffa_8KHz_osr256_actions[] =
 	HANDSET_TX_8000_OSR_256_FFA;
@@ -1906,6 +1964,39 @@ static struct platform_device msm_uplink_rx_device = {
 	.dev = { .platform_data = &snddev_uplink_rx_data },
 };
 
+//Div2-SW5-BSP-FD1-Acoustic-00+{
+static struct platform_device *snd_devices_fd1[] __initdata = {
+	&msm_iearpiece_fd1_device,
+	&msm_imic_ffa_device,
+	&msm_ifmradio_handset_device,
+	&msm_ihs_fd1_stereo_rx_device,
+	&msm_ihs_ffa_mono_rx_device,
+	&msm_ihs_mono_tx_device,
+	&msm_bt_sco_earpiece_device,
+	&msm_bt_sco_mic_device,
+	&msm_ispeaker_rx_device,
+	&msm_ifmradio_speaker_device,
+	&msm_ifmradio_ffa_headset_device,
+	&msm_idual_mic_endfire_device,
+	&msm_idual_mic_broadside_device,
+	&msm_spk_idual_mic_endfire_device,
+	&msm_spk_idual_mic_broadside_device,
+	&msm_itty_hs_mono_tx_device,
+	&msm_itty_hs_mono_rx_device,
+	&msm_ispeaker_tx_device,
+	&msm_ihs_stereo_speaker_stereo_rx_device,
+	&msm_a2dp_rx_device,
+	&msm_a2dp_tx_device,
+	&msm_snddev_mi2s_stereo_rx_device,
+	&msm_snddev_mi2s_fm_tx_device,
+	&msm_uplink_rx_device,
+	&msm_real_stereo_tx_device,
+	&msm_imic2_ffa_device,/* Div1-FW3-BSP-AUDIO */
+	&msm_ispeaker_rx_left_device,/* Div1-FW3-BSP-AUDIO */
+	&msm_ispeaker_rx_right_device,/* Div1-FW3-BSP-AUDIO */
+};
+//Div2-SW5-BSP-FD1-Acoustic-00+}
+
 static struct platform_device *snd_devices_ffa[] __initdata = {
 	&msm_iearpiece_ffa_device,
 	&msm_imic_ffa_device,
@@ -2076,8 +2167,17 @@ void __init msm_snddev_init(void)
 	if (machine_is_msm7x30_ffa() || machine_is_msm8x55_ffa() ||
 		machine_is_msm8x55_svlte_ffa()) {
 
+//Div2-SW5-BSP-FD1-Acoustic-00+{
+    if (fih_get_product_id() == Product_FD1)
+    {
+		platform_add_devices(snd_devices_fd1,
+		ARRAY_SIZE(snd_devices_fd1));
+    }
+    else {	    
 		platform_add_devices(snd_devices_ffa,
 		ARRAY_SIZE(snd_devices_ffa));
+    }		
+//Div2-SW5-BSP-FD1-Acoustic-00+}
 
 #ifdef CONFIG_DEBUG_FS
 		debugfs_hsed_config = debugfs_create_file("msm_hsed_config",

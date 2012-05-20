@@ -25,6 +25,7 @@
 #include <mach/camera.h>
 #include <mach/vreg.h>
 #include <mach/clk.h>
+#include <asm/mach-types.h>
 
 #define CAMIF_CFG_RMSK             0x1fffff
 #define CAM_SEL_BMSK               0x2
@@ -288,7 +289,8 @@ gp16_put:
 	vreg_put(vreg_gp16);
 	vreg_gp16 = NULL;
 gp6_disable:
-	 vreg_disable(vreg_gp6);
+	/* Voting off gp6 causes touchscreen i2c issues */
+	/* vreg_disable(vreg_gp6); */
 gp6_put:
 	vreg_put(vreg_gp6);
 	vreg_gp6 = NULL;
@@ -322,7 +324,8 @@ static void msm_camera_vreg_disable(void)
 		vreg_lvsw1 = NULL;
 	}
 	if (vreg_gp6) {
-		vreg_disable(vreg_gp6);
+		/* Voting off gp6 causes touchscreen i2c issues */
+		/* vreg_disable(vreg_gp6); */
 		vreg_put(vreg_gp6);
 		vreg_gp6 = NULL;
 	}

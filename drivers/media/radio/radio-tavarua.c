@@ -53,6 +53,7 @@
 #include <linux/platform_device.h>
 #include <linux/workqueue.h>
 #include <linux/slab.h>
+//@fihtdcCode@ 20101111 Godfrey 
 #include <linux/gpio.h>
 #include <linux/gps_fm_lna.h>
 
@@ -186,7 +187,7 @@ int enable_gps_fm_lna(int bEnable)
         if (!gps_fm_lna_refcnt)
             return 0;
 
-        if (gps_fm_lna_refcnt==1)
+        if (gps_fm_lna_refcnt == 1)
             gpio_set_value(GPS_FM_LNA_2V8_GPIO,0);
 
         gps_fm_lna_refcnt--;
@@ -530,8 +531,15 @@ FUNCTION:  write_to_xfr
 static int write_to_xfr(struct tavarua_device *radio, unsigned char mode,
 			char *buf, int len)
 {
-	char buffer[len+1];
-	memcpy(buffer+1, buf, len);
+    //fihtdc, FB3.B-410
+    char buffer[XFR_REG_NUM + 1];
+
+    if(len > XFR_REG_NUM){
+        printk(KERN_ERR "%s: buffer length error.\n",__func__);
+        return -1;
+    }      
+
+	memcpy(&buffer[1], buf, len);
 	/* buffer[0] corresponds to XFRCTRL register
 	   set the CTRL bit to 1 for write mode
 	*/
@@ -1256,7 +1264,8 @@ static int tavarua_set_region(struct tavarua_device *radio,
 		retval = sync_read_xfr(radio, RADIO_CONFIG, xfr_buf);
 		if (retval < 0) {
 			FMDERR("failed to get RADIO_CONFIG\n");
-			return retval;
+			/* FIHTDC, Div2-SW2-BSP Godfrey, FB0.B-655 */
+			//return retval;
 		}
 		band_low = (radio->region_params.band_low -
 					low_band_limit) / spacing;
@@ -1611,6 +1620,8 @@ static int tavarua_fops_open(struct file *file)
 	char buffer[] = {0x00, 0x48, 0x8A, 0x8E, 0x97, 0xB7};
 	int bahama_present = -ENODEV;
 
+	FMDBG("In %s", __func__);
+
 	mutex_lock(&radio->lock);
 	if (radio->users) {
 		mutex_unlock(&radio->lock);
@@ -1878,9 +1889,9 @@ static int tavarua_fops_release(struct file *file)
 			}
 		}
 	}	else	{
-
-		retval = tavarua_write_registers(radio, FM_CTL0,
-				buffer, sizeof(buffer)/sizeof(buffer[0]));
+    radio->marimba->mod_id = MARIMBA_SLAVE_ID_FM;
+    retval = tavarua_write_registers(radio, LEAKAGE_CNTRL+1,
+                                                buffer, 3);
 		if (retval < 0) {
 			printk(KERN_ERR "%s: failed to bring down the  FM Core\n",
 							__func__);
@@ -2439,6 +2450,14 @@ static int tavarua_vidioc_s_ctrl(struct file *file, void *priv,
 			if (retval < 0)
 				FMDBG("SMute and SBlending not enabled\n");
 			}
+
+            //@fihtdc, Godfrey set default threshold
+            if(sync_read_xfr(radio, RX_CONFIG, xfr_buf)) {
+                xfr_buf[0] = (unsigned char)TAVARUA_DEFAULT_TH;
+                xfr_buf[1] = (unsigned char)TAVARUA_DEFAULT_TH;
+                xfr_buf[4] = 0x01;
+                sync_write_xfr(radio, RX_CONFIG, xfr_buf);
+            }
 		}
 		/* check if off */
 		else if ((ctrl->value == FM_OFF) && radio->registers[RDCTRL]) {
@@ -3106,7 +3125,7 @@ static int tavarua_suspend(struct platform_device *pdev, pm_message_t state)
 			if (retval < 0) {
 				printk(KERN_INFO DRIVER_NAME
 					"tavarua_suspend error %d\n", retval);
-				return -EIO;
+				//return -EIO;
 			}
 		}
 	}
@@ -3141,7 +3160,7 @@ static int tavarua_resume(struct platform_device *pdev)
 			if (retval < 0) {
 				printk(KERN_INFO DRIVER_NAME "Error in \
 					tavarua_resume %d\n", retval);
-				return -EIO;
+				//return -EIO;
 			}
 		}
 	}

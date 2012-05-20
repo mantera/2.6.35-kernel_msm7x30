@@ -41,6 +41,7 @@
  //SW2-5-1-MP-DbgCfgTool-00+[
 #ifdef CONFIG_FIH_REMOVE_SERIAL_DYNAMICALLY
 #include <mach/msm_smd.h>  
+#include <../devices.h>
 extern struct platform_device msm_device_uart2;
 #include <mach/gpio.h> //SW2-5-2-MP-DbgCfgTool-06+
 #endif
@@ -867,6 +868,28 @@ static inline struct uart_port * get_port_from_line(unsigned int line)
 	return &msm_uart_ports[line].uart;
 }
 
+// Vincent
+void ftm_init_clock(int on)
+{
+	struct uart_port *port = get_port_from_line(1);
+	
+	if (on == 1) {
+		/* clock must be TCXO/4 */
+		printk(KERN_INFO "msm_serial: FTM change baud rate to 460800\n");
+		msm_write(port, 0x18, UART_MREG);
+		msm_write(port, 0xF6, UART_NREG);
+		msm_write(port, 0x0F, UART_DREG);
+		msm_write(port, 0x0A, UART_MNDREG);
+	} else {
+		/* clock is TCXO (19.2MHz) */
+		printk(KERN_INFO "msm_serial: FTM change baud rate to 115200\n");
+		msm_write(port, 0x06, UART_MREG);
+		msm_write(port, 0xF1, UART_NREG);
+		msm_write(port, 0x0F, UART_DREG);
+		msm_write(port, 0x1A, UART_MNDREG);
+	}
+}
+
 #ifdef CONFIG_SERIAL_MSM_CONSOLE
 
 /*
@@ -906,6 +929,10 @@ static inline void wait_for_xmitr(struct uart_port *port, int bits)
 
 static void msm_console_putchar(struct uart_port *port, int c)
 {
+#ifdef CONFIG_FIH_FTM
+	// bypass the TX of UART console.
+	return;
+#endif	// CONFIG_FIH_FTM
 	/* This call can incur significant delay if CTS flowcontrol is enabled
 	 * on port and no serial cable is attached.
 	 */
@@ -976,6 +1003,18 @@ static int __init msm_console_setup(struct console *co, char *options)
 	msm_set_baud_rate(port, baud);
 
 	msm_reset(port);
+
+//Div251-PK-DisableUARTWakeup-00+[
+#ifdef CONFIG_FIH_MODEM_REMOVE_UART2_CLK
+//   Do not let system wake-up from suspend by console serial port.
+	if (is_console(port)) {
+		printk(KERN_INFO "msm_serial: port #%d is console disable irq wake\n", port->line);
+		if (unlikely(set_irq_wake(port->irq, 0))) {
+			printk(KERN_INFO "msm_serial: port #%d is console disable irq wake failed\n", port->line);
+		}
+	}
+#endif
+//Div251-PK-DisableUARTWakeup-00+]
 
 	printk(KERN_INFO "msm_serial: console setup on port #%d\n", port->line);
 
@@ -1190,6 +1229,7 @@ static int __init msm_serial_init(void)
 	ret = uart_register_driver(&msm_uart_driver);
 	if (unlikely(ret))
 		return ret;
+	msm_platform_driver.driver.pm = NULL;//TCXO shutdown for work arround  added by VinceCCTsai
 
 	ret = platform_driver_probe(&msm_platform_driver, msm_serial_probe);
 	if (unlikely(ret))

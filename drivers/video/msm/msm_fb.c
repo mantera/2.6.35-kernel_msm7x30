@@ -40,6 +40,9 @@
 #include <linux/android_pmem.h>
 #include <linux/leds.h>
 #include <linux/pm_runtime.h>
+//SW2-6-MM-JH-Backlight_PWM-01+
+#include <mach/msm_iomap.h>  // for MSM_CLK_CTL_BASE
+//SW2-6-MM-JH-Backlight_PWM-01-
 
 #define MSM_FB_C
 #include "msm_fb.h"
@@ -118,6 +121,20 @@ int msm_fb_debugfs_file_index;
 struct dentry *msm_fb_debugfs_root;
 struct dentry *msm_fb_debugfs_file[MSM_FB_MAX_DBGFS];
 
+//SW2-6-MM-JH-Backlight_Resume-00+
+#ifdef CONFIG_FB_MSM_MDDI
+static boolean msm_fb_pan_display_done = TRUE;
+#endif
+//SW2-6-MM-JH-Backlight_Resume-00-
+
+/* FIHTDC-Div5-SW2-BSP, Chun {*/ 
+#ifdef CONFIG_FB_MSM_LCDC_TOSHIBA_WVGA_PT
+int suspend_resume_flag=0;
+int permit=0;
+int bl_level_framework_store=100;
+#endif
+/* }FIHTDC-Div5-SW2-BSP, Chun */ 
+
 DEFINE_MUTEX(msm_fb_notify_update_sem);
 void msmfb_no_update_notify_timer_cb(unsigned long data)
 {
@@ -187,6 +204,146 @@ static struct led_classdev backlight_led = {
 	.brightness_set	= msm_fb_set_bl_brightness,
 };
 #endif
+
+//SW2-6-MM-JH-Backlight_PWM-01+
+#ifndef CONFIG_FB_BACKLIGHT
+#include <linux/miscdevice.h>
+
+#define IOCTL_BL_REG_MAGIC 'B'
+#define IOCTL_GET_BL_REG  _IOR(IOCTL_BL_REG_MAGIC, 0xF1, struct backlight_regs)
+#define IOCTL_SET_BL_REG _IOWR(IOCTL_BL_REG_MAGIC, 0xF2, struct backlight_regs)
+
+struct msm_fb_data_type *bl_mfd;
+
+static int backlight_device_ioctl(struct inode *inode, struct file *file,
+            unsigned int cmd, unsigned long arg)
+{
+    int ret = 0;
+    struct backlight_regs bl_regs;
+    void __user *argp = (void __user *)arg;
+    struct msm_fb_panel_data *pdata = (struct msm_fb_panel_data *)bl_mfd->pdev->dev.platform_data;
+    __u32 GP_MD_REG, GP_NS_REG, GP_MD_REG_ADDR, GP_NS_REG_ADDR;
+    GP_MD_REG_ADDR = (__u32) MSM_CLK_CTL_BASE + 0x58;
+    GP_NS_REG_ADDR = (__u32) MSM_CLK_CTL_BASE + 0x5c;
+
+    printk(KERN_INFO "backlight_device_ioctl(0x%X)\n", cmd);
+
+    switch (cmd) {
+    case IOCTL_GET_BL_REG:
+        if (bl_mfd->panel_info.bl_regs.bl_type == BL_TYPE_GP_CLK) {
+            GP_MD_REG = readl(GP_MD_REG_ADDR);
+            GP_NS_REG = readl(GP_NS_REG_ADDR);
+            bl_mfd->panel_info.bl_regs.gp_clk_m = (GP_MD_REG & 0x01ff0000) >> 16;
+            bl_mfd->panel_info.bl_regs.gp_clk_n = 0x1fff - ((GP_NS_REG & 0x1fff0000) >> 16) + bl_mfd->panel_info.bl_regs.gp_clk_m;
+            bl_mfd->panel_info.bl_regs.gp_clk_d = (~(readl(MSM_CLK_CTL_BASE + 0x58)) & 0x0000ffff) >> 1;
+            printk(KERN_INFO "[MSM_FB] Get GP_MD_REG: 0x%08X, GP_NS_REG: 0x%08X\n", GP_MD_REG, GP_NS_REG);
+            printk(KERN_INFO "[MSM_FB] Get M = %u, N = %u, D = %u\n",
+                             bl_mfd->panel_info.bl_regs.gp_clk_m,
+                             bl_mfd->panel_info.bl_regs.gp_clk_n,
+                             bl_mfd->panel_info.bl_regs.gp_clk_d);
+        }
+
+        ret = copy_to_user(argp, &bl_mfd->panel_info.bl_regs, sizeof(struct backlight_regs));
+        if (ret) {
+            printk(KERN_ERR "%s: IOCTL_GET_BL_REG copy to user error, ret = %d\n", __func__, ret);
+            return ret;
+        }
+
+        break;
+
+    case IOCTL_SET_BL_REG:
+        ret = copy_from_user(&bl_regs, argp, sizeof(struct backlight_regs));
+        if (ret) {
+            printk(KERN_ERR "%s: IOCTL_SET_BL_REG copy from user error, ret = %d\n", __func__, ret);
+            return ret;
+        }
+
+        if (pdata->set_backlight_regs) {
+            pdata->set_backlight_regs(bl_mfd, &bl_regs);
+        } else if (bl_mfd->panel_info.bl_regs.bl_type == BL_TYPE_GP_CLK) {
+            GP_MD_REG = ((bl_regs.gp_clk_m & 0x01ff) << 16) | (~(bl_regs.gp_clk_d * 2) & 0xffff);
+            writel(GP_MD_REG, GP_MD_REG_ADDR);
+            GP_NS_REG = (~(bl_regs.gp_clk_n - bl_regs.gp_clk_m) << 16) | (readl(GP_NS_REG_ADDR) & 0xffff) ;
+            writel(GP_NS_REG, GP_NS_REG_ADDR);
+            printk(KERN_INFO "[MSM_FB] Set GP_MD_REG: 0x%08X, GP_NS_REG: 0x%08X\n", GP_MD_REG, GP_NS_REG);
+            printk(KERN_INFO "[MSM_FB] Set M = %u, N = %u, D = %u\n",
+                             bl_regs.gp_clk_m, bl_regs.gp_clk_n, bl_regs.gp_clk_d);
+            bl_mfd->panel_info.bl_regs.gp_clk_m = bl_regs.gp_clk_m;
+            bl_mfd->panel_info.bl_regs.gp_clk_n = bl_regs.gp_clk_n;
+            bl_mfd->panel_info.bl_regs.gp_clk_d = bl_regs.gp_clk_d;
+        } else {
+            return -EFAULT;
+        }
+
+        break;
+
+    default:
+        return -ENOIOCTLCMD;
+    }
+
+    return ret;
+}
+
+struct file_operations backlight_misc_dev_fops = {
+    .owner = THIS_MODULE,
+    .ioctl = backlight_device_ioctl,
+};
+
+static struct miscdevice backlight_misc_dev = {
+    .minor = MISC_DYNAMIC_MINOR,
+    .name = "lcd-backlight",
+    .fops = &backlight_misc_dev_fops,
+};
+
+int create_backlight_device(struct msm_fb_data_type *mfd)
+{
+    int ret = -ENODEV;
+
+    ret = misc_register(&backlight_misc_dev);
+    if (ret) {
+        printk(KERN_ERR "%s: backlight_device register failed\n", __func__);
+    }
+
+    bl_mfd = mfd;
+    return 0;
+}
+
+#endif // CONFIG_FB_BACKLIGHT
+//SW2-6-MM-JH-Backlight_PWM-01-
+
+//SW2-6-MM-JH-lcd_stress_test-00+
+#if defined(CONFIG_FIH_FTM) && !defined(CONFIG_PANEL_POWER)
+#define CONFIG_PANEL_POWER
+#endif
+
+#if defined(CONFIG_PANEL_POWER)
+static ssize_t panel_power_store(struct device *dev,
+        struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+    struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)fbi->par;
+    struct msm_fb_panel_data *pdata = (struct msm_fb_panel_data *)mfd->pdev->dev.platform_data;
+    int panel_power_on;
+
+    sscanf(buf, "%d", &panel_power_on);
+
+    if (panel_power_on)
+        pdata->on(mfd->pdev);
+    else
+        pdata->off(mfd->pdev);
+
+    return size;
+}
+
+static DEVICE_ATTR(panel_power, 0644, NULL, panel_power_store);
+/*
+ *  => static struct device_attribute dev_attr_panel_power = __ATTR(panel_power, 0644, NULL, panel_power_store);
+ *
+ *  In android/kernel/include/linux/device.h:
+ *  #define DEVICE_ATTR(_name,_mode,_show,_store)  struct device_attribute dev_attr_##_name = __ATTR(_name,_mode,_show,_store)
+ */
+#endif // CONFIG_PANEL_POWER
+//SW2-6-MM-JH-lcd_stress_test-00-
 
 static struct msm_fb_platform_data *msm_fb_pdata;
 static char panel_name[128];
@@ -350,7 +507,13 @@ static int msm_fb_probe(struct platform_device *pdev)
 		if (led_classdev_register(&pdev->dev, &backlight_led))
 			printk(KERN_ERR "led_classdev_register failed\n");
 		else
+		{
 			lcd_backlight_registered = 1;
+
+//SW2-6-MM-JH-Backlight_PWM-01+
+			create_backlight_device(mfd);
+//SW2-6-MM-JH-Backlight_PWM-01-
+		}
 	}
 #endif
 	
@@ -467,6 +630,12 @@ static int msm_fb_suspend_sub(struct msm_fb_data_type *mfd)
 	mfd->suspend.panel_power_on = mfd->panel_power_on;
 
 	if (mfd->op_enable) {
+
+#ifdef CONFIG_FB_MSM_LCDC_TOSHIBA_WVGA_PT
+    if (permit==1)
+	 	suspend_resume_flag=1;
+	permit=1;
+#endif
 		ret =
 		     msm_fb_blank_sub(FB_BLANK_POWERDOWN, mfd->fbi,
 				      mfd->suspend.op_enable);
@@ -500,6 +669,12 @@ static int msm_fb_suspend_sub(struct msm_fb_data_type *mfd)
 		}
 	}
 
+//SW2-6-MM-JH-Backlight_Resume-00+
+#ifdef CONFIG_FB_MSM_MDDI
+	msm_fb_pan_display_done = FALSE;
+#endif
+//SW2-6-MM-JH-Backlight_Resume-00-
+
 	return 0;
 }
 
@@ -520,6 +695,11 @@ static int msm_fb_resume_sub(struct msm_fb_data_type *mfd)
 	mfd->op_enable = mfd->suspend.op_enable;
 
 	if (mfd->suspend.panel_power_on) {
+#ifdef CONFIG_FB_MSM_LCDC_TOSHIBA_WVGA_PT
+    if (permit==1)
+	 	suspend_resume_flag=1;
+	permit=1;
+#endif		
 		ret =
 		     msm_fb_blank_sub(FB_BLANK_UNBLANK, mfd->fbi,
 				      mfd->op_enable);
@@ -647,7 +827,20 @@ void msm_fb_set_backlight(struct msm_fb_data_type *mfd, __u32 bkl_lvl)
 	if ((pdata) && (pdata->set_backlight)) {
 		down(&mfd->sem);
 		mfd->bl_level = bkl_lvl;
+
+//SW2-6-MM-JH-Backlight_Resume-00+
+#ifdef CONFIG_FB_MSM_MDDI
+			MSM_FB_INFO("MSM_FB: set backlight level = %d\n", bkl_lvl);
+			if (mfd->panel_power_on) {
+				if (msm_fb_pan_display_done) {
+					pdata->set_backlight(mfd);
+				}
+			}
+#else
 		pdata->set_backlight(mfd);
+#endif
+//SW2-6-MM-JH-Backlight_Resume-00-
+
 		up(&mfd->sem);
 	}
 }
@@ -671,10 +864,21 @@ static int msm_fb_blank_sub(int blank_mode, struct fb_info *info,
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
 		if (!mfd->panel_power_on) {
-			msleep(16);
+			//msleep(16); /* FIHTDC-Div2-SW2-BSP, Ming */
 			ret = pdata->on(mfd->pdev);
 			if (ret == 0) {
 				mfd->panel_power_on = TRUE;
+
+				/* FIHTDC-Div5-SW2-BSP, Chun {*/
+                //printk(KERN_INFO "[DISPLAY] %s:mfd->bl_level=%d \n", __func__,mfd->bl_level);                
+#ifdef CONFIG_FB_MSM_LCDC_TOSHIBA_WVGA_PT
+               	mfd->bl_level=bl_level_framework_store; 
+#endif
+				//mfd->bl_level=35;
+				//printk(KERN_INFO "[DISPLAY] %s:mfd->bl_level=%d \n", __func__,mfd->bl_level);
+				/* }FIHTDC-Div5-SW2-BSP, Chun */
+				msm_fb_set_backlight(mfd,
+						     mfd->bl_level);
 
 /* ToDo: possible conflict with android which doesn't expect sw refresher */
 /*
@@ -702,11 +906,17 @@ static int msm_fb_blank_sub(int blank_mode, struct fb_info *info,
 			curr_pwr_state = mfd->panel_power_on;
 			mfd->panel_power_on = FALSE;
 
-			msleep(16);
+			//printk(KERN_INFO "[DISPLAY] %s:suspend_resume_flag=%d \n", __func__,suspend_resume_flag);
+			mdelay(100);
+
 			ret = pdata->off(mfd->pdev);
 			if (ret)
 				mfd->panel_power_on = curr_pwr_state;
-
+		  /* FIHTDC-Div5-SW2-BSP, Chun {*/
+          #if defined (CONFIG_FTM_SMD)
+			msm_fb_set_backlight(mfd, 0); /*FIHTDC-Div5-SW2-BSP, Chun */ 
+	      #endif
+	      /* }FIHTDC-Div5-SW2-BSP, Chun */	
 			mfd->op_enable = TRUE;
 		}
 		break;
@@ -1161,6 +1371,13 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 	    ("FrameBuffer[%d] %dx%d size=%d bytes is registered successfully!\n",
 	     mfd->index, fbi->var.xres, fbi->var.yres, fbi->fix.smem_len);
 
+//SW2-6-MM-JH-lcd_stress_test-00+
+#if defined(CONFIG_PANEL_POWER)
+	/* File node: /sys/class/graphics/fb?/panel_power */
+	ret = device_create_file(fbi->dev, &dev_attr_panel_power);
+#endif
+//SW2-6-MM-JH-lcd_stress_test-00-
+
 #ifdef CONFIG_FB_MSM_LOGO
 	if (!load_565rle_image(INIT_IMAGE_FILE)) ;	/* Flip buffer */
 #endif
@@ -1428,6 +1645,24 @@ static int msm_fb_pan_display(struct fb_var_screeninfo *var,
 	mdp_set_dma_pan_info(info, dirtyPtr,
 			     (var->activate == FB_ACTIVATE_VBL));
 	mdp_dma_pan_update(info);
+
+//SW2-6-MM-JH-Backlight_Resume-00+
+#ifdef CONFIG_FB_MSM_MDDI
+	if ( (!msm_fb_pan_display_done) && mfd->panel_power_on) {
+		// msm_fb_pan_display is called for the first time after device resumes
+		if (mfd->bl_level>0) {
+			struct msm_fb_panel_data *pdata;
+			pdata = (struct msm_fb_panel_data *)mfd->pdev->dev.platform_data;
+			mdelay(50);  // delay enough to ensure that the content of frame buffer is entirely sent to panel.
+
+			MSM_FB_INFO("MSM_FB: pan_display set backlight level = %d\n", mfd->bl_level);
+			pdata->set_backlight(mfd);
+		}
+		msm_fb_pan_display_done = TRUE;
+	}
+#endif
+//SW2-6-MM-JH-Backlight_Resume-00-
+
 	up(&msm_fb_pan_sem);
 
 	++mfd->panel_info.frame_count;

@@ -28,6 +28,6 @@ obj-$(CONFIG_INPUT_KEYRESET)	+= keyreset.o
 
 obj-$(CONFIG_XEN_KBDDEV_FRONTEND)	+= xen-kbdfront.o
 
-#//Div2D5-OwenHuang-BSP4040_Sensors_Porting-00+{
+#//Div2D5-OwenHuang-FB0_Sensors-Porting_New_Sensors_Architecture-00+{
 obj-$(CONFIG_NEW_YAMAHA_SENSORS) += sensors/
-#//Div2D5-OwenHuang-BSP4040_Sensors_Porting-00+}
+#//Div2D5-OwenHuang-FB0_Sensors-Porting_New_Sensors_Architecture-00+}

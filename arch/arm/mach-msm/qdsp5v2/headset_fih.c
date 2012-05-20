@@ -72,9 +72,8 @@ static void detection_work(struct work_struct *work);
 static DECLARE_WORK(g_detection_work, detection_work);
 
 
-int bn_irq_enable               = 0;
-bool mHeadphone                 = false;
-bool mSuspend                   = false; 
+int bn_irq_enable = 0;
+bool mHeadphone = false;
 
 //Define the switch state
 // /sys/class/switch/headset_sensor/state

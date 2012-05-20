@@ -288,6 +288,8 @@ static struct sysrq_key_op sysrq_showstate_blocked_op = {
 	.enable_mask	= SYSRQ_ENABLE_DUMP,
 };
 
+// FIHTDC, HenryMCWang, remove this function for gingerbread porting {
+/*
 // FIHTDC, HenryMCWang, add sysrq call (Y) to raise a kernel panic {
 static void sysrq_kernel_panic(int key, struct tty_struct *tty)
 {
@@ -301,6 +303,8 @@ static struct sysrq_key_op sysrq_kernel_panic_op = {
 	.enable_mask	= SYSRQ_ENABLE_DUMP,
 };
 // } FIHTDC, HenryMCWang, add sysrq call (Y) to raise a kernel panic
+*/
+// } FIHTDC, HenryMCWang, remove this function for gingerbread porting
 
 #ifdef CONFIG_TRACING
 #include <linux/ftrace.h>
@@ -467,7 +471,7 @@ static struct sysrq_key_op *sysrq_key_table[36] = {
 	NULL,				/* x */
 	/* y: May be registered on sparc64 for global register dump */
 	// FIHTDC, HenryMCWang, add sysrq call (Y) to raise a kernel panic {
-	&sysrq_kernel_panic_op,		/* y */
+	NULL,				/* y */
 	// } FIHTDC, HenryMCWang, add sysrq call (Y) to raise a kernel panic
 	&sysrq_ftrace_dump_op,		/* z */
 };

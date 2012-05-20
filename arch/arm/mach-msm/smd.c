@@ -1766,8 +1766,7 @@ unsigned int fih_host_usb_id = 0x0;
 unsigned int fih_host_boot_mode = 0x0; //SW-2-5-1-MP-DbgCfgTool-03+
 
 //Div251-PK-SUSPEND_LOG-00+[
-//#ifdef CONFIG_FIH_MODEM_SUSPEND_LOG
-#if 0
+#ifdef CONFIG_FIH_MODEM_SUSPEND_LOG
 void show_smem_sleep_info (void)
 {
 	static struct smem_oem_info *gsmem_oem_info = NULL;

@@ -20,6 +20,13 @@
 #include <linux/wakelock.h>
 #include <linux/workqueue.h>
 
+//Div2-SW2-BSP-EarlySuspendLog, VinceCCTsai+[
+#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
+#include <linux/ktime.h>
+#include <linux/hrtimer.h>
+#include <linux/kallsyms.h>
+#endif
+//Div2-SW2-BSP-EarlySuspendLog, VinceCCTsai-]
 #include "power.h"
 
 //Div2-SW2-BSP-pmlog, HenryMCWang +
@@ -39,7 +46,15 @@ enum {
 	DEBUG_USER_STATE = 1U << 0,
 	DEBUG_SUSPEND = 1U << 2,
 };
-static int debug_mask = DEBUG_USER_STATE;
+
+//Div251-PK-SUSPEND_LOG-00+[
+#ifdef CONFIG_FIH_MODEM_SUSPEND_LOG
+  static int debug_mask = DEBUG_USER_STATE | DEBUG_SUSPEND;
+#else
+  static int debug_mask = DEBUG_USER_STATE;
+#endif /* CONFIG_FIH_MODEM_SUSPEND_LOG */
+//Div251-PK-SUSPEND_LOG-00+]
+
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static DEFINE_MUTEX(early_suspend_lock);
@@ -170,6 +185,8 @@ static void early_suspend(struct work_struct *work)
 /* } FIHTDC, Div2-SW2-BSP, Penho, fast dormancy */
 
 
+//Div2-SW2-BSP-improve FB0.B-3948, PenhoYu+[
+	if (state & SUSPEND_REQUESTED) {
 /* FIHTDC, Div2-SW2-BSP, Penho, SuspendLog { */
 #ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
 	calltime = ktime_get();
@@ -182,6 +199,9 @@ static void early_suspend(struct work_struct *work)
 	suspend_sys_sync_queue();
 #endif	// CONFIG_FIH_SUSPEND_RESUME_LOG
 /* } FIHTDC, Div2-SW2-BSP, Penho, SuspendLog */
+	}
+//Div2-SW2-BSP-improve FB0.B-3948, PenhoYu-]
+
 abort:
 	spin_lock_irqsave(&state_lock, irqflags);
 	if (state == SUSPEND_REQUESTED_AND_SUSPENDED)
@@ -249,6 +269,21 @@ static void late_resume(struct work_struct *work)
 /* } FIHTDC, Div2-SW2-BSP, Penho, SuspendLog */
 	if (debug_mask & DEBUG_SUSPEND)
 		pr_info("late_resume: done\n");
+//Div2-SW2-BSP-EarlySuspendLog, VinceCCTsai+[
+#ifdef __FIH_PM_STATISTICS__
+	g_pms_bkrun.time += ((g_pms_run.pre = get_seconds()) - g_pms_bkrun.pre);
+	g_pms_run.cnt++;
+#ifdef __FIH_DBG_PM_STATISTICS__
+	{
+		unsigned long l = get_seconds() - g_pms_resume.pre;
+		g_pms_resume.ntime += ((l) ? (l--, (NSEC_PER_SEC - g_pms_resume.npre + get_nseconds())) : (get_nseconds() - g_pms_resume.npre));
+		g_pms_resume.time += (l + (g_pms_resume.ntime / NSEC_PER_SEC));
+		g_pms_resume.ntime %= NSEC_PER_SEC;
+	}
+#endif		// __FIH_DBG_PM_STATISTICS__
+#endif	// __FIH_PM_STATISTICS__
+//-FIH_ADQ
+//Div2-SW2-BSP-EarlySuspendLog, VinceCCTsai-]
 abort:
 	mutex_unlock(&early_suspend_lock);
 }
@@ -281,6 +316,15 @@ void request_suspend_state(suspend_state_t new_state)
 		wake_lock(&main_wake_lock);
 		queue_work(suspend_work_queue, &late_resume_work);
 	}
+//Div251-PK-SUSPEND_LOG-00+[
+#ifdef CONFIG_FIH_MODEM_SUSPEND_LOG
+	else
+	{
+		pr_info("request_suspend_state failed: old_sleep = %d, new_state = %d\n",
+			old_sleep, new_state);
+	}
+#endif /* CONFIG_FIH_MODEM_SUSPEND_LOG */
+//Div251-PK-SUSPEND_LOG-00+]
 	requested_suspend_state = new_state;
 	spin_unlock_irqrestore(&state_lock, irqflags);
 }

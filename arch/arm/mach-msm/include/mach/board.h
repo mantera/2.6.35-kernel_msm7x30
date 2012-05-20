@@ -369,10 +369,8 @@ struct msm_hdmi_platform_data {
 	bool (*check_hdcp_hw_support)(void);
 #endif
 /* FIHTDC, Div2-SW2-BSP SungSCLee, HDMI { */	
-#ifdef CONFIG_FB_MSM_HDMI_ADV7525_PANEL	
 	int (*intr_detect)(void);
 	void (*setup_int_power)(int);	
-#endif	
 /* } FIHTDC, Div2-SW2-BSP SungSCLee, HDMI */
 };
 

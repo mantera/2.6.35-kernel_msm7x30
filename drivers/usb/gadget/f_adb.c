@@ -44,6 +44,46 @@
 
 static const char shortname[] = "android_adb";
 
+//Div2-5-3-Peripheral-LL-ADB_ROOT-00+{
+#define NV_BSP_ADB_USER_RIGHT_I 50028
+static bool scsi_adb_root = false;
+static bool nv_adb_root = false;
+void scsi_set_adb_root(void);
+void nv_read_adb_root_right(void);
+
+static ssize_t root_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+    bool is_root = (scsi_adb_root || nv_adb_root);
+    scsi_adb_root = false;
+    return sprintf(buf, "%d\n", is_root?1:0);
+}
+
+static DEVICE_ATTR(root, S_IRUGO | S_IWUSR, root_show, NULL);
+
+void scsi_set_adb_root()
+{
+    scsi_adb_root = true;
+}
+EXPORT_SYMBOL(scsi_set_adb_root);
+
+void nv_read_adb_root_right()
+{
+    uint32_t smem_proc_comm_oem_cmd1 = PCOM_CUSTOMER_CMD1;
+    uint32_t smem_proc_comm_oem_data1 = SMEM_PROC_COMM_OEM_NV_READ;
+    uint32_t smem_proc_comm_oem_data2= NV_BSP_ADB_USER_RIGHT_I;
+    uint32_t adb_root_right[32];
+    if(msm_proc_comm_oem(smem_proc_comm_oem_cmd1, &smem_proc_comm_oem_data1, adb_root_right, &smem_proc_comm_oem_data2) == 0) {
+        if(adb_root_right[0] != 1) {
+            printk(KERN_INFO"%s: adb_root_right[0]=%d\n", __func__, adb_root_right[0]);
+            nv_adb_root = true;
+        }else {
+            printk(KERN_INFO"%s: adb user right\n", __func__);
+            nv_adb_root = false;
+        }
+    }
+}
+//Div2-5-3-Peripheral-LL-ADB_ROOT-00+}
+
 struct adb_dev {
 	struct usb_function function;
 	struct usb_composite_dev *cdev;
@@ -121,6 +161,23 @@ static struct usb_descriptor_header *hs_adb_descs[] = {
 	NULL,
 };
 
+//Div2-5-3-Peripheral-LL-UsbCustomized-01+{
+/* string descriptors: */
+static struct usb_string adb_string_defs[] = {
+	[0].s = "ADB",
+	{  } /* end of list */
+};
+
+static struct usb_gadget_strings adb_string_table = {
+	.language =		0x0409,	/* en-us */
+	.strings =		adb_string_defs,
+};
+
+static struct usb_gadget_strings *adb_strings[] = {
+	&adb_string_table,
+	NULL,
+};
+//Div2-5-3-Peripheral-LL-UsbCustomized-01+}
 
 /* temporary variable used between adb_open() and adb_gadget_bind() */
 static struct adb_dev *_adb_dev;
@@ -589,49 +646,10 @@ static void adb_function_disable(struct usb_function *f)
 	VDBG(cdev, "%s disabled\n", dev->function.name);
 }
 
-/* FIHTDC, Div2-SW2-BSP, Penho, ADB_ROOT { */
-#define NV_BSP_ADB_USER_RIGHT_I 50028
-static bool scsi_adb_root = false;
-static bool nv_adb_root = false;
-void scsi_set_adb_root(void);
-void nv_read_adb_root_right(void);
-
-static ssize_t root_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-    bool is_root = (scsi_adb_root || nv_adb_root);
-    scsi_adb_root = false;
-    return sprintf(buf, "%d\n", is_root?1:0);
-}
-
-static DEVICE_ATTR(root, S_IRUGO | S_IWUSR, root_show, NULL);
-
-void scsi_set_adb_root()
-{
-    scsi_adb_root = true;
-}
-EXPORT_SYMBOL(scsi_set_adb_root);
-
-void nv_read_adb_root_right()
-{
-    uint32_t smem_proc_comm_oem_cmd1 = PCOM_CUSTOMER_CMD1;
-    uint32_t smem_proc_comm_oem_data1 = SMEM_PROC_COMM_OEM_NV_READ;
-    uint32_t smem_proc_comm_oem_data2 = NV_BSP_ADB_USER_RIGHT_I;
-    uint32_t adb_root_right[32];
-    if (msm_proc_comm_oem(smem_proc_comm_oem_cmd1, &smem_proc_comm_oem_data1, adb_root_right, &smem_proc_comm_oem_data2) == 0) {
-        if(adb_root_right[0] != 1) {
-            printk(KERN_INFO "%s: adb_root_right[0]=%d\n", __func__, adb_root_right[0]);
-            nv_adb_root = true;
-        } else {
-            printk(KERN_INFO "%s: adb user right\n", __func__);
-            nv_adb_root = false;
-        }
-    }
-}
-/* } FIHTDC, Div2-SW2-BSP, Penho, ADB_ROOT */
-
 static int adb_bind_config(struct usb_configuration *c)
 {
 	struct adb_dev *dev;
+	int id = usb_string_id(c->cdev);
 	int ret;
 
 	pr_debug("adb_bind_config\n");
@@ -651,8 +669,16 @@ static int adb_bind_config(struct usb_configuration *c)
 
 	INIT_LIST_HEAD(&dev->tx_idle);
 
+    //Div2-5-3-Peripheral-LL-UsbCustomized-01+{
+    if( id < 0)
+        return id;
+    adb_string_defs[0].id = id;
+    adb_interface_desc.iInterface = id;
+    //Div2-5-3-Peripheral-LL-UsbCustomized-01+}
+
 	dev->cdev = c->cdev;
 	dev->function.name = "adb";
+	dev->function.strings = adb_strings;//Div2-5-3-Peripheral-LL-UsbCustomized-01+
 	dev->function.descriptors = fs_adb_descs;
 	dev->function.hs_descriptors = hs_adb_descs;
 	dev->function.bind = adb_function_bind;

@@ -336,6 +336,7 @@ struct mdp4_statistic {
 	ulong intr_underrun_e;	/* external interface */
 	ulong intr_dsi;
 	ulong kickoff_mddi;
+	ulong kickoff_piggy;
 	ulong kickoff_lcdc;
 	ulong kickoff_dtv;
 	ulong kickoff_atv;
@@ -460,16 +461,8 @@ void mdp4_overlay_lcdc_set_perf(struct msm_fb_data_type *mfd);
 void mdp4_update_perf_level(u32 perf_level);
 void mdp4_set_perf_level(void);
 void mdp4_mddi_overlay_dmas_restore(void);
-
-#ifndef CONFIG_FB_MSM_MIPI_DSI
-void mdp4_mddi_dma_busy_wait(struct msm_fb_data_type *mfd);
-#else
-static inline void mdp4_mddi_dma_busy_wait(struct msm_fb_data_type *mfd)
-{
-	/* empty */
-}
-#endif
-
+void mdp4_mddi_dma_busy_wait(struct msm_fb_data_type *mfd,
+				struct mdp4_overlay_pipe *pipe);
 void mdp4_mddi_overlay_kickoff(struct msm_fb_data_type *mfd,
 				struct mdp4_overlay_pipe *pipe);
 void mdp4_rgb_igc_lut_setup(int num);

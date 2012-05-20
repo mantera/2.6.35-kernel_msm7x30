@@ -155,7 +155,7 @@ apps_no_mem:
 	release_mem_region(camio_ext.appphy, camio_ext.appsz);
 enable_fail:
 	return rc;
-}
+	}
 
 void msm_camio_disable(struct platform_device *pdev)
 {
@@ -163,7 +163,7 @@ void msm_camio_disable(struct platform_device *pdev)
 	release_mem_region(camio_ext.appphy, camio_ext.appsz);
 	msm_camio_clk_disable(CAMIO_MDC_CLK);
 	msm_camio_clk_disable(CAMIO_VFE_AXI_CLK);
-}
+	}
 
 int msm_camio_sensor_clk_on(struct platform_device *pdev)
 {

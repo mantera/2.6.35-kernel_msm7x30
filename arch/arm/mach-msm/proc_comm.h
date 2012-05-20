@@ -168,7 +168,6 @@ enum {
 	PCOM_CMD_FAIL_PROC_COMM_NOT_INIT,
 };
 
-#ifdef CONFIG_MSM_PROC_COMM
 void msm_proc_comm_reset_modem_now(void);
 int msm_proc_comm(unsigned cmd, unsigned *data1, unsigned *data2);
 //Div2-SW2-BSP,JOE HSU,+++
@@ -317,6 +316,7 @@ int proc_comm_fuse_boot_get(void);
 //Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +[
 int proc_comm_read_nv(unsigned *cmd_parameter);
 int proc_comm_write_nv(unsigned *cmd_parameter);
+int fih_write_nv4719( unsigned int* fih_debug );
 //Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +]
 /* FIHTDC, CHHsieh, PMIC Unlock { */
 int proc_comm_ftm_pmic_unlock(void);
@@ -363,9 +363,8 @@ void proc_comm_ftm_battery_id_read(char* buf);
 //Div2D5-AC-BSP-Add_baattery_ID_command-00+}
 
 
-/* FIHTDC, Div2-SW2-BSP, Penho, packet filter { */
-#ifdef CONFIG_FIH_PACKET_FILTER
 /* FIH, Tiger, 2009/12/10 { */
+#ifdef CONFIG_FIH_FXX
 #define CLEAR_TABLE			0
 #define ADD_DEST_PORT		1
 #define DELETE_DEST_PORT	2
@@ -373,13 +372,6 @@ void proc_comm_ftm_battery_id_read(char* buf);
 
 extern int msm_proc_comm_oem_tcp_filter(void *cmd_data, unsigned cmd_size);
 /* } FIH; Tiger; 2009/12/10 */
-#endif	// CONFIG_FIH_PACKET_FILTER
-/* } FIHTDC, Div2-SW2-BSP, Penho, packet filter */
-
-#else
-static inline void msm_proc_comm_reset_modem_now(void) { }
-static inline int msm_proc_comm(unsigned cmd, unsigned *data1, unsigned *data2)
-{ return 0; }
 #endif
 
 #endif

@@ -22,6 +22,8 @@
 #include <linux/list.h>
 #include <mach/clk.h>
 
+#include "clock-pcom.h"
+
 #define CLKFLAG_INVERT			0x00000001
 #define CLKFLAG_NOINVERT		0x00000002
 #define CLKFLAG_NONEST			0x00000004

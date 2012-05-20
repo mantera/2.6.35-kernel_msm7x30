@@ -43,6 +43,7 @@
 static void otg_reset(struct otg_transceiver *xceiv, int phy_reset);
 static void msm_otg_set_vbus_state(int online);
 static void msm_otg_set_id_state(int online);
+extern void cable_status(bool status);    //Div6-D1-JL-UsbPorting-00+
 
 struct msm_otg *the_msm_otg;
 
@@ -1167,32 +1168,18 @@ static irqreturn_t msm_otg_irq(int irq, void *data)
 	pr_debug("IRQ state: %s\n", state_string(state));
 	pr_debug("otgsc = %x\n", otgsc);
 
-	if ((otgsc & OTGSC_IDIE) && (otgsc & OTGSC_IDIS)) {
-        /* +++ FIHTDC, AlbertYCFang, 2011.10.04 --- */
-        // We don't support usb host mode currently.
-        // When the USB_ID ping is shorted to ground, driver treated it as usb peripheral is attached.
-        // Skip the USB_ID ping interrupt and clear the register
-        #if 0
-		if (otgsc & OTGSC_ID) {
-			pr_debug("Id set\n");
-			set_bit(ID, &dev->inputs);
-		} else {
-			pr_debug("Id clear\n");
-			/* Assert a_bus_req to supply power on
-			 * VBUS when Micro/Mini-A cable is connected
-			 * with out user intervention.
-			 */
-			set_bit(A_BUS_REQ, &dev->inputs);
-			clear_bit(ID, &dev->inputs);
-		}
-		writel(otgsc, USB_OTGSC);
-		work = 1;
-        #endif
-        printk("USB_ID LOW\n");
-        writel(otgsc, USB_OTGSC);
-        work = 0;
-        /* --- FIHTDC, AlbertYCFang, 2011.10.04 --- */
-	} else if (otgsc & OTGSC_BSVIS) {
+    if (otgsc & OTGSC_BSVIS) {
+	
+	    //Div6-D1-JL-UsbPorting-00+{
+	    if(otgsc & OTGSC_BSVIE)
+        {
+            if(otgsc & OTGSC_BSV)
+    			cable_status(true);
+    		else
+    			cable_status(false);
+        }
+	    //Div6-D1-JL-UsbPorting-00+{
+	    
 		writel(otgsc, USB_OTGSC);
 		/* BSV interrupt comes when operating as an A-device
 		 * (VBUS on/off).
@@ -1249,6 +1236,24 @@ static irqreturn_t msm_otg_irq(int irq, void *data)
 			work = 0;
 			break;
 		}
+	} else if (otgsc & OTGSC_IDIS) {
+		if (otgsc & OTGSC_ID) {
+			pr_debug("Id set\n");
+			set_bit(ID, &dev->inputs);
+		} else {
+			pr_debug("Id clear\n");
+			/* Assert a_bus_req to supply power on
+			 * VBUS when Micro/Mini-A cable is connected
+			 * with out user intervention.
+			 */
+			//FXPCAYM-259: Start - Comment out two lines to fix some charger issue
+			//set_bit(A_BUS_REQ, &dev->inputs);
+			//clear_bit(ID, &dev->inputs);
+			//FXPCAYM-259: End - Comment out two lines to fix some charger issue
+		}
+		writel(otgsc, USB_OTGSC);
+		//For special AC charger that will interrupt ID pin, ignore it
+		//work = 1;
 	}
 	if (work) {
 #ifdef CONFIG_USB_MSM_ACA
@@ -1725,6 +1730,11 @@ static void msm_otg_sm_work(struct work_struct *w)
 #endif
 			/* Workaround: Reset PHY in SE1 state */
 			otg_reset(&dev->otg, 1);
+			if (!is_b_sess_vld()) {
+				clear_bit(B_SESS_VLD, &dev->inputs);
+				work = 1;
+				break;
+			}
 			pr_debug("entering into lpm with wall-charger\n");
 			msm_otg_put_suspend(dev);
 			/* Allow idle power collapse */

@@ -43,7 +43,7 @@
 #include <linux/videodev2.h>
 
 
-#undef FM_DEBUG
+#define FM_DEBUG
 
 /* constants */
 #define  RDS_BLOCKS_NUM             (4)
@@ -87,6 +87,9 @@
 #define TAVARUA_AUDIO_OUT_ANALOG_ON	    (1)
 #define TAVARUA_AUDIO_OUT_DIGITAL_OFF	(0)
 #define TAVARUA_AUDIO_OUT_DIGITAL_ON	(1)
+
+/* FIHTDC, Div2-SW2-BSP Godfrey, FB0.B-396 */
+int enableGPS_FM_LNA(int bEnable);
 
 int tavarua_set_audio_path(int digital_on, int analog_on);
 
@@ -314,7 +317,11 @@ enum radio_state_t {
 /* interrupt register 3 */
 #define	TRANSFER	(1 << 0) /* Data transfer (XFR) completed */
 #define	RDSPROC		(1 << 1) /* Dynamic RDS Processing complete */
+
+/* FIHTDC, Div2-SW2-BSP Godfrey */
+#ifndef ERROR
 #define	ERROR		(1 << 7) /* Err occurred.Read code to determine cause */
+#endif
 
 /* Transfer */
 enum tavarua_xfr_ctrl_t {

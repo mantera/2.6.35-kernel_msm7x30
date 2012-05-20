@@ -293,9 +293,13 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 
-/* FIHTDC, Div2-SW2-BSP, Penho, SUT_DOWNLOAD { */
+//Div2-5-3-Peripheral-LL-UsbPorting-00+{
 #include <linux/reboot.h>
-/* } FIHTDC, Div2-SW2-BSP, Penho, SUT_DOWNLOAD */
+#include <linux/ctype.h>
+#include "mach/fih_msm_battery.h"
+#include "../../../arch/arm/mach-msm/smd_private.h"
+#include "../../../arch/arm/mach-msm/proc_comm.h"
+//Div2-5-3-Peripheral-LL-UsbPorting-00+}
 
 #include "gadget_chips.h"
 
@@ -315,14 +319,22 @@ MODULE_PARM_DESC(fsg_nofua, "FUA Flag state in SCSI WRITE");
 #define FSG_DRIVER_VERSION	"2009/09/11"
 
 static const char fsg_string_interface[] = "Mass Storage";
-
-
+//Div2-5-3-Peripheral-LL-UsbPorting-00+{
+uint32_t Download_Enter = 0;
+int Mac_OS = 1;
+extern int OS_Type;
+extern int fih_usb_full_func;//Div2-5-3-Peripheral-LL-UsbCustomized-01+
+extern bool is_switch;
+extern bool storage_state;
+#define BUILD_ID "/system/build_id"
 /* FIHTDC, Div2-SW2-BSP, Penho, SUT_DOWNLOAD { */
 #ifdef CONFIG_FIH_FXX
 #define USBDBG(x ...) printk(KERN_INFO x)
 #endif	// CONFIG_FIH_FXX
 /* } FIHTDC, Div2-SW2-BSP, Penho, SUT_DOWNLOAD */
-
+void scsi_set_adb_root(void);//Div2-5-3-Peripheral-LL-ADB_ROOT-00+
+void usb_switch_pid(int);
+//Div2-5-3-Peripheral-LL-UsbPorting-00+}
 
 #define FSG_NO_INTR_EP 1
 #define FSG_NO_DEVICE_STRINGS    1
@@ -403,6 +415,7 @@ struct fsg_common {
 	struct kref		ref;
 };
 
+#define backing_file_is_open(curlun)	((curlun)->filp != NULL)
 
 struct fsg_config {
 	unsigned nluns;
@@ -666,7 +679,6 @@ static int fsg_setup(struct usb_function *f,
 	return -EOPNOTSUPP;
 }
 
-
 /*-------------------------------------------------------------------------*/
 
 /* All the following routines run in process context */
@@ -768,7 +780,12 @@ static int do_read(struct fsg_common *common)
 		curlun->sense_data = SS_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
 		return -EINVAL;
 	}
+    //Div6-D1-JL-UsbPorting-00+{
+    if(common->lun == 1 && Mac_OS ==0)
+		file_offset = ((loff_t) lba) << 11;	    
+	else
 	file_offset = ((loff_t) lba) << 9;
+    //Div6-D1-JL-UsbPorting-00+}
 
 	/* Carry out the file reads */
 	amount_left = common->data_size_from_cmnd;
@@ -806,7 +823,12 @@ static int do_read(struct fsg_common *common)
 		if (amount == 0) {
 			curlun->sense_data =
 					SS_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
+            //Div6-D1-JL-UsbPorting-00+{
+            if(common->lun == 1 && Mac_OS ==0)
+				curlun->sense_data_info = file_offset >> 11;
+			else
 			curlun->sense_data_info = file_offset >> 9;
+            //Div6-D1-JL-UsbPorting-00+}
 			curlun->info_valid = 1;
 			bh->inreq->length = 0;
 			bh->state = BUF_STATE_FULL;
@@ -831,7 +853,12 @@ static int do_read(struct fsg_common *common)
 		} else if (nread < amount) {
 			LDBG(curlun, "partial file read: %d/%u\n",
 					(int) nread, amount);
+            //Div6-D1-JL-UsbPorting-00+{
+			if(common->lun == 1 && Mac_OS ==0)
+				nread -= (nread & 2047);		/* Round down to a block */	
+			else
 			nread -= (nread & 511);	/* Round down to a block */
+            //Div6-D1-JL-UsbPorting-00+}
 		}
 		file_offset  += nread;
 		amount_left  -= nread;
@@ -842,7 +869,12 @@ static int do_read(struct fsg_common *common)
 		/* If an error occurred, report it and its position */
 		if (nread < amount) {
 			curlun->sense_data = SS_UNRECOVERED_READ_ERROR;
+            //Div6-D1-JL-UsbPorting-00+{
+			if(common->lun == 1 && Mac_OS == 0)
+			   curlun->sense_data_info = file_offset >> 11;
+			else
 			curlun->sense_data_info = file_offset >> 9;
+            //Div6-D1-JL-UsbPorting-00+}
 			curlun->info_valid = 1;
 			break;
 		}
@@ -918,6 +950,10 @@ static int do_write(struct fsg_common *common)
 
 	/* Carry out the file writes */
 	get_some_more = 1;
+    //Div6-D1-JL-UsbPorting-00+{
+    if(common->lun == 1 && Mac_OS == 0) 
+		file_offset = usb_offset = ((loff_t) lba) << 11;
+	else
 	file_offset = usb_offset = ((loff_t) lba) << 9;
 	amount_left_to_req = common->data_size_from_cmnd;
 	amount_left_to_write = common->data_size_from_cmnd;
@@ -949,11 +985,21 @@ static int do_write(struct fsg_common *common)
 				get_some_more = 0;
 				curlun->sense_data =
 					SS_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
+                //Div6-D1-JL-UsbPorting-00+{
+				if(common->lun == 1 && Mac_OS == 0)   
+				  curlun->sense_data_info = usb_offset >> 11;
+				else
 				curlun->sense_data_info = usb_offset >> 9;
+                //Div6-D1-JL-UsbPorting-00+}
 				curlun->info_valid = 1;
 				continue;
 			}
+            //Div6-D1-JL-UsbPorting-00+{
+			if(common->lun == 1 && Mac_OS == 0) 
+			  amount -= (amount & 2047);
+			else
 			amount -= (amount & 511);
+            //Div6-D1-JL-UsbPorting-00+}
 			if (amount == 0) {
 
 				/* Why were we were asked to transfer a
@@ -1005,7 +1051,12 @@ static int do_write(struct fsg_common *common)
 			/* Did something go wrong with the transfer? */
 			if (bh->outreq->status != 0) {
 				curlun->sense_data = SS_COMMUNICATION_FAILURE;
+                //Div6-D1-JL-UsbPorting-00+{
+				if(common->lun == 1 && Mac_OS == 0)    
+				   curlun->sense_data_info = file_offset >> 11;
+				else
 				curlun->sense_data_info = file_offset >> 9;
+                //Div6-D1-JL-UsbPorting-00+}
 				curlun->info_valid = 1;
 				break;
 			}
@@ -1037,8 +1088,13 @@ static int do_write(struct fsg_common *common)
 			} else if (nwritten < amount) {
 				LDBG(curlun, "partial file write: %d/%u\n",
 						(int) nwritten, amount);
+                //Div6-D1-JL-UsbPorting-00+{
+				if(common->lun == 1 && Mac_OS ==0)    
+				   nwritten -= (nwritten & 2047);
+				else
 				nwritten -= (nwritten & 511);
-				/* Round down to a block */
+                //Div6-D1-JL-UsbPorting-00+}
+						/* Round down to a block */
 			}
 			file_offset += nwritten;
 			amount_left_to_write -= nwritten;
@@ -1156,8 +1212,18 @@ static int do_verify(struct fsg_common *common)
 		return -EIO;		/* No default reply */
 
 	/* Prepare to carry out the file verify */
+    //Div6-D1-JL-UsbPorting-00+{
+	if(common->lun == 1 && Mac_OS ==0)
+	{
+		amount_left = verification_length << 11;
+		file_offset = ((loff_t) lba) << 11;  	
+	}
+	else
+	{
 	amount_left = verification_length << 9;
 	file_offset = ((loff_t) lba) << 9;
+	}
+    //Div6-D1-JL-UsbPorting-00+}
 
 	/* Write out all the dirty buffers before invalidating them */
 	fsg_lun_fsync_sub(curlun);
@@ -1183,7 +1249,12 @@ static int do_verify(struct fsg_common *common)
 		if (amount == 0) {
 			curlun->sense_data =
 					SS_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
+            //Div6-D1-JL-UsbPorting-00+{
+			if(common->lun == 1 && Mac_OS ==0)
+			   curlun->sense_data_info = file_offset >> 11;  
+			else
 			curlun->sense_data_info = file_offset >> 9;
+            //Div6-D1-JL-UsbPorting-00+}
 			curlun->info_valid = 1;
 			break;
 		}
@@ -1206,11 +1277,21 @@ static int do_verify(struct fsg_common *common)
 		} else if (nread < amount) {
 			LDBG(curlun, "partial file verify: %d/%u\n",
 					(int) nread, amount);
+            //Div6-D1-JL-UsbPorting-00+{
+			if(common->lun == 1 && Mac_OS ==0)   
+				nread -= (nread & 2047);		/* Round down to a sector */	
+			else
 			nread -= (nread & 511);	/* Round down to a sector */
+            //Div6-D1-JL-UsbPorting-00+}
 		}
 		if (nread == 0) {
 			curlun->sense_data = SS_UNRECOVERED_READ_ERROR;
+            //Div6-D1-JL-UsbPorting-00+{
+			if(common->lun == 1 && Mac_OS ==0)
+			   curlun->sense_data_info = file_offset >> 11;
+			else
 			curlun->sense_data_info = file_offset >> 9;
+            //Div6-D1-JL-UsbPorting-00+}
 			curlun->info_valid = 1;
 			break;
 		}
@@ -1219,9 +1300,6 @@ static int do_verify(struct fsg_common *common)
 	}
 	return 0;
 }
-
-
-/*-------------------------------------------------------------------------*/
 
 static int do_inquiry(struct fsg_common *common, struct fsg_buffhd *bh)
 {
@@ -1253,7 +1331,6 @@ static int do_inquiry(struct fsg_common *common, struct fsg_buffhd *bh)
 	memcpy(buf + 8, common->inquiry_string, sizeof common->inquiry_string);
 	return 36;
 }
-
 
 static int do_request_sense(struct fsg_common *common, struct fsg_buffhd *bh)
 {
@@ -1308,7 +1385,6 @@ static int do_request_sense(struct fsg_common *common, struct fsg_buffhd *bh)
 	return 18;
 }
 
-
 static int do_read_capacity(struct fsg_common *common, struct fsg_buffhd *bh)
 {
 	struct fsg_lun	*curlun = common->curlun;
@@ -1324,10 +1400,15 @@ static int do_read_capacity(struct fsg_common *common, struct fsg_buffhd *bh)
 
 	put_unaligned_be32(curlun->num_sectors - 1, &buf[0]);
 						/* Max logical block */
-	put_unaligned_be32(512, &buf[4]);	/* Block length */
+
+    //Div6-D1-JL-UsbPorting-00+{
+	if(common->lun == 1)
+	    put_unaligned_be32(2048, &buf[4]);				/* Block length */  
+	else
+	    put_unaligned_be32(512, &buf[4]);	/* Block length */
+   //Div6-D1-JL-UsbPorting-00+}
 	return 8;
 }
-
 
 static int do_read_header(struct fsg_common *common, struct fsg_buffhd *bh)
 {
@@ -1350,7 +1431,6 @@ static int do_read_header(struct fsg_common *common, struct fsg_buffhd *bh)
 	store_cdrom_address(&buf[4], msf, lba);
 	return 8;
 }
-
 
 static int do_read_toc(struct fsg_common *common, struct fsg_buffhd *bh)
 {
@@ -1376,7 +1456,10 @@ static int do_read_toc(struct fsg_common *common, struct fsg_buffhd *bh)
 	buf[13] = 0x16;			/* Lead-out track is data */
 	buf[14] = 0xAA;			/* Lead-out track number */
 	store_cdrom_address(&buf[16], msf, curlun->num_sectors);
-	return 20;
+	buf[17] = 0xCD;
+	buf[18] = 0x2A;
+	buf[19] = 0x43;
+	return start_track;
 }
 
 
@@ -1463,6 +1546,7 @@ static int do_mode_sense(struct fsg_common *common, struct fsg_buffhd *bh)
 
 static int do_start_stop(struct fsg_common *common)
 {
+#if 0 //Div2-5-3-Peripheral-LL-CDROM-00+ disable CDROM EJECT operation
 	struct fsg_lun	*curlun = common->curlun;
 	int		loej, start;
 
@@ -1507,6 +1591,8 @@ static int do_start_stop(struct fsg_common *common)
 			return -EINVAL;
 		}
 	}
+#endif
+
 	return 0;
 }
 
@@ -1548,11 +1634,16 @@ static int do_read_format_capacities(struct fsg_common *common,
 
 	put_unaligned_be32(curlun->num_sectors, &buf[0]);
 						/* Number of blocks */
-	put_unaligned_be32(512, &buf[4]);	/* Block length */
+   //Div6-D1-JL-UsbPorting-00+{
+	if(common->lun == 1 && Mac_OS ==0)
+        put_unaligned_be32(2048, &buf[4]);				/* Block length */	
+	else
+	    put_unaligned_be32(512, &buf[4]);	/* Block length */
+    //Div6-D1-JL-UsbPorting-00+}
+
 	buf[4] = 0x02;				/* Current capacity */
 	return 12;
 }
-
 
 static int do_mode_select(struct fsg_common *common, struct fsg_buffhd *bh)
 {
@@ -1912,27 +2003,20 @@ static int check_command(struct fsg_common *common, int cmnd_size,
 	/* Verify the length of the command itself */
 	if (cmnd_size != common->cmnd_size) {
 
-		/* Special case workaround: There are plenty of buggy SCSI
-		 * implementations. Many have issues with cbw->Length
-		 * field passing a wrong command size. For those cases we
-		 * always try to work around the problem by using the length
-		 * sent by the host side provided it is at least as large
-		 * as the correct command length.
-		 * Examples of such cases would be MS-Windows, which issues
-		 * REQUEST SENSE with cbw->Length == 12 where it should
-		 * be 6, and xbox360 issuing INQUIRY, TEST UNIT READY and
-		 * REQUEST SENSE with cbw->Length == 10 where it should
-		 * be 6 as well.
-		 */
-		if (cmnd_size <= common->cmnd_size) {
-			DBG(common, "%s is buggy! Expected length %d "
-			    "but we got %d\n", name,
-			    cmnd_size, common->cmnd_size);
+		/* Special case workaround: MS-Windows issues REQUEST SENSE/
+		 * INQUIRY with cbw->Length == 12 (it should be 6). */
+		//Div2-5-3-Peripheral-LL-SCSI-00*{
+		//Avoid some PCs BIOS do different SCSI command that cause staying on booting screen
+		if ((common->cmnd[0] == SC_REQUEST_SENSE && common->cmnd_size == 12)
+		 || (common->cmnd[0] == SC_INQUIRY && common->cmnd_size == 12)
+		 || (common->cmnd[0] == SC_TEST_UNIT_READY && common->cmnd_size == 12)
+		 || (common->cmnd[0] == SC_READ_TOC && common->cmnd_size == 12))
 			cmnd_size = common->cmnd_size;
-		} else {
+		else {
 			common->phase_error = 1;
 			return -EINVAL;
 		}
+		//Div2-5-3-Peripheral-LL-SCSI-00*}
 	}
 
 	/* Check that the LUN values are consistent */
@@ -2057,7 +2141,6 @@ static int do_mass_storage(struct fsg_common *fsg, struct fsg_buffhd *bh)
 	return 36;
 }
 
-bool is_switch = false;
 static int do_switch_status(struct fsg_common *fsg, struct fsg_buffhd *bh)
 {
 	char online[36]="1",offline[36]="0";//,temp[]="1"; 	
@@ -2090,7 +2173,6 @@ static int do_switch_adb(struct fsg_common *common, struct fsg_buffhd *bh, int e
 	return common->data_size_from_cmnd;
 }
 
-#include "mach/fih_msm_battery.h"
 static int do_read_battery(struct fsg_common *fsg, struct fsg_buffhd *bh)
 {
     struct batt_info_interface* batt_info_if = get_batt_info_if();
@@ -2195,12 +2277,40 @@ static int do_scsi_command(struct fsg_common *common)
 	switch (common->cmnd[0]) {
 
 	case SC_INQUIRY:
+        //Div6-D1-JL-UsbPorting-00+{
+        if(common->lun == 1 && OS_Type == 1) {
+			OS_Type = 2;    //MacOS
+			Mac_OS = 1;
+		} else if(common->lun == 1 && OS_Type==0){
+			OS_Type = 3;    //Microsoft Windows
+			Mac_OS = 0;
+		}
+        //Div6-D1-JL-UsbPorting-00+}
 		common->data_size_from_cmnd = common->cmnd[4];
-		reply = check_command(common, 6, DATA_DIR_TO_HOST,
-				      (1<<4), 0,
-				      "INQUIRY");
-		if (reply == 0)
+		if ((reply = check_command(common, 6, DATA_DIR_TO_HOST,
+				(1<<4), 0,
+				"INQUIRY")) == 0)
+        {
+            //Div6-D1-JL-UsbPorting-00+{
+		    if(common->cmnd[1]==0x20)
+				Mac_OS = 1;
+            //Div6-D1-JL-UsbPorting-00+}
 			reply = do_inquiry(common, bh);
+        }
+
+        //Div6-D1-JL-PidSwitching-00+{
+        if(common->cmnd[1]==0x20)
+        { 
+            //Linux os for Mass storage             
+            //usb_chg_pid(true);
+        }       
+        else if(OS_Type == 2)       
+        {           
+            //Mac OS                       
+            //usb_chg_pid(true);
+        }
+        //Div6-D1-JL-PidSwitching-00+}
+        
 		break;
 
 	case SC_MODE_SELECT_6:
@@ -2252,31 +2362,42 @@ static int do_scsi_command(struct fsg_common *common)
 
 	case SC_READ_6:
 		i = common->cmnd[4];
+        //Div6-D1-JL-UsbPorting-00+{   
+		if(common->lun == 1 && Mac_OS ==0)
+		  common->data_size_from_cmnd = (i == 0 ? 256 : i) << 11;	
+		else
 		common->data_size_from_cmnd = (i == 0 ? 256 : i) << 9;
+        //Div6-D1-JL-UsbPorting-00+}
 		reply = check_command(common, 6, DATA_DIR_TO_HOST,
-				      (7<<1) | (1<<4), 1,
-				      "READ(6)");
+				(7<<1) | (1<<4), 1,
+				"READ(6)");
 		if (reply == 0)
 			reply = do_read(common);
 		break;
 
 	case SC_READ_10:
-		common->data_size_from_cmnd =
-				get_unaligned_be16(&common->cmnd[7]) << 9;
-		reply = check_command(common, 10, DATA_DIR_TO_HOST,
-				      (1<<1) | (0xf<<2) | (3<<7), 1,
-				      "READ(10)");
-		if (reply == 0)
+        //Div6-D1-JL-UsbPorting-00+{ 
+		if(common->lun == 1 && Mac_OS ==0)
+		  common->data_size_from_cmnd = get_unaligned_be24(&common->cmnd[7]) << 11;	
+		else
+		common->data_size_from_cmnd = get_unaligned_be24(&common->cmnd[7]) << 9;
+        //Div6-D1-JL-UsbPorting-00+}
+		if ((reply = check_command(common, 10, DATA_DIR_TO_HOST,
+				(1<<1) | (0xf<<2) | (3<<7), 1,
+				"READ(10)")) == 0)
 			reply = do_read(common);
 		break;
 
 	case SC_READ_12:
-		common->data_size_from_cmnd =
-				get_unaligned_be32(&common->cmnd[6]) << 9;
-		reply = check_command(common, 12, DATA_DIR_TO_HOST,
-				      (1<<1) | (0xf<<2) | (0xf<<6), 1,
-				      "READ(12)");
-		if (reply == 0)
+        //Div6-D1-JL-UsbPorting-00+{
+		if(common->lun == 1 && Mac_OS ==0)
+		   common->data_size_from_cmnd = get_unaligned_be24(&common->cmnd[7]) << 11;	
+		else
+		common->data_size_from_cmnd = get_unaligned_be32(&common->cmnd[6]) << 9;
+        //Div6-D1-JL-UsbPorting-00+}
+		if ((reply = check_command(common, 12, DATA_DIR_TO_HOST,
+				(1<<1) | (0xf<<2) | (0xf<<6), 1,
+				"READ(12)")) == 0)
 			reply = do_read(common);
 		break;
 
@@ -2351,6 +2472,10 @@ static int do_scsi_command(struct fsg_common *common)
 		break;
 
 	case SC_TEST_UNIT_READY:
+        //Div6-D1-JL-UsbPorting-00+{
+        if(common->lun == 1 && OS_Type == 0)
+			OS_Type = 1;
+        //Div6-D1-JL-UsbPorting-00+}
 		common->data_size_from_cmnd = 0;
 		reply = check_command(common, 6, DATA_DIR_NONE,
 				0, 1,
@@ -2370,7 +2495,12 @@ static int do_scsi_command(struct fsg_common *common)
 
 	case SC_WRITE_6:
 		i = common->cmnd[4];
+        //Div6-D1-JL-UsbPorting-00+{
+		if(common->lun == 1 && Mac_OS ==0)	
+		   common->data_size_from_cmnd = (i == 0 ? 256 : i) << 11;
+		else
 		common->data_size_from_cmnd = (i == 0 ? 256 : i) << 9;
+        //Div6-D1-JL-UsbPorting-00+}
 		reply = check_command(common, 6, DATA_DIR_FROM_HOST,
 				      (7<<1) | (1<<4), 1,
 				      "WRITE(6)");
@@ -2379,8 +2509,12 @@ static int do_scsi_command(struct fsg_common *common)
 		break;
 
 	case SC_WRITE_10:
-		common->data_size_from_cmnd =
-				get_unaligned_be16(&common->cmnd[7]) << 9;
+        //Div6-D1-JL-UsbPorting-00+{
+		if(common->lun == 1 && Mac_OS ==0)
+			common->data_size_from_cmnd = get_unaligned_be24(&common->cmnd[7]) << 11;
+		else
+		common->data_size_from_cmnd = get_unaligned_be24(&common->cmnd[7]) << 9;
+        //Div6-D1-JL-UsbPorting-00+}
 		reply = check_command(common, 10, DATA_DIR_FROM_HOST,
 				      (1<<1) | (0xf<<2) | (3<<7), 1,
 				      "WRITE(10)");
@@ -2389,8 +2523,12 @@ static int do_scsi_command(struct fsg_common *common)
 		break;
 
 	case SC_WRITE_12:
-		common->data_size_from_cmnd =
-				get_unaligned_be32(&common->cmnd[6]) << 9;
+        //Div6-D1-JL-UsbPorting-00+{
+		if(common->lun == 1 && Mac_OS ==0)
+		    common->data_size_from_cmnd = get_unaligned_be32(&common->cmnd[6]) << 11;
+		else
+		common->data_size_from_cmnd = get_unaligned_be32(&common->cmnd[6]) << 9;
+        //Div6-D1-JL-UsbPorting-00+}
 		reply = check_command(common, 12, DATA_DIR_FROM_HOST,
 				      (1<<1) | (0xf<<2) | (0xf<<6), 1,
 				      "WRITE(12)");
@@ -2454,7 +2592,7 @@ static int do_scsi_command(struct fsg_common *common)
 
 	case SC_ENTER_DOWNLOADMODE:
 		if ((common->cmnd[1] == 'F') && (common->cmnd[2] == 'I') && (common->cmnd[3] == 'H')) {
-			//Download_Enter = 1;
+			Download_Enter = 1;
 			Restart_To_Download();
 		}
 		break;
@@ -2466,7 +2604,7 @@ static int do_scsi_command(struct fsg_common *common)
 				kernel_restart("switch");
 			} else if (common->cmnd[3] == '1') {
 				// Set to enter ftm mode just once
-				kernel_restart("ftmonce");			//Div2-5-3-Peripheral-LL-SCSI_FTM-00+
+				kernel_restart("ftmonce");  //Div2-5-3-Peripheral-LL-SCSI_FTM-00+
 			}
 		}
 		break;
@@ -2711,7 +2849,6 @@ reset:
 	return rc;
 }
 
-
 /****************************** ALT CONFIGS ******************************/
 
 
@@ -2748,6 +2885,7 @@ static int fsg_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 
 static void fsg_disable(struct usb_function *f)
 {
+
 	struct fsg_dev *fsg = fsg_from_func(f);
 
 	/* Disable the endpoints */

@@ -315,7 +315,7 @@ if FIH_CONFIG_GROUP
 #Div2D5-LC-BSP-Implement_Internal_SD-00 +[                
         config FIH_SF5_DUAL_SD_CARD
             bool "Enable Dual SD card"
-            default y
+            default n
             help
                 Select if you want to enable dual SD card.
 #Div2D5-LC-BSP-Implement_Internal_SD-00 +]
@@ -1398,7 +1398,7 @@ if FIH_CONFIG_GROUP
         config FIH_PMIC_VIB
             bool "FIH PMIC Vibrator"
             depends on FIH_CONFIG_GROUP
-            default n
+            default y
             help
                 Select if the PMIC vibrator is attached.
 
@@ -1412,7 +1412,7 @@ if FIH_CONFIG_GROUP
         config LEDS_FIH_FBX_RPC
             bool "LEDs Driver for FBX (Controlled by RPC)"
             depends on LEDS_CLASS && FIH_CONFIG_GROUP && !LEDS_MSM_PMIC
-            default n
+            default y
             help
                 This option enables support for controlling FBX LEDs
                 by PMIC RPC calls
@@ -1476,7 +1476,7 @@ if FIH_CONFIG_GROUP
         menuconfig KEYBOARD_FBX
             tristate "FBX Keyboard"
             depends on PMIC8058 && FIH_CONFIG_GROUP && !KEYBOARD_PMIC8058
-            default n
+            default y
             help
               Say Y here if you want to enable the driver for the FBX project.
 
@@ -1525,7 +1525,7 @@ if FIH_CONFIG_GROUP
         menuconfig BATTERY_BQ275X0
             tristate "TI BQ275X0 fuel gauge driver"
             depends on FIH_CONFIG_GROUP && PMIC8058
-            default y
+            default n
             help
               Say Y here to enable support for on-board BQ275X0 gauge IC.
         
@@ -1533,7 +1533,7 @@ if FIH_CONFIG_GROUP
             config BQ275X0_ROMMODE
             tristate "TI BQ275X0 fuel gauge rom mode driver"
             depends on FIH_CONFIG_GROUP
-            default y
+            default n
             help
               Say Y here if you want to write .dfi file to BQ275x0.
               
@@ -1587,7 +1587,7 @@ if FIH_CONFIG_GROUP
     config FIH_POWER_LOG
             bool "FIH LOG about Power & Battery Log"
             depends on FIH_CONFIG_GROUP
-            default y
+            default n
             help
                 Enable power & battery log support
 
@@ -1601,7 +1601,7 @@ if FIH_CONFIG_GROUP
     config FIH_FLOG
             bool "FIH Flog"
             depends on FIH_CONFIG_GROUP
-            default y
+            default n
             help
                 Enable FTM log mechanism
 
@@ -1615,7 +1615,7 @@ if FIH_CONFIG_GROUP
     config FIH_MLOG
             bool "FIH Mlog"
             depends on FIH_CONFIG_GROUP
-            default y
+            default n
             help
                 Enable Mlog mechanism
 

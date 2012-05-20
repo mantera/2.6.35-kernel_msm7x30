@@ -786,8 +786,7 @@ void proc_comm_ftm_bdaddr_read(char * buf)
 }
 EXPORT_SYMBOL(proc_comm_ftm_bdaddr_read);
 //FIH, godfrey, 20100505--
-//SW2-6-1-CONN-CD-WiFi-GetMacFromNV-03*[
-static int wlanaddr_firstget = 0;
+
 //Div6-PT2-Peripheral-CD-WIFI_FTM_TEST-02+[
 void proc_comm_ftm_wlanaddr_write(char* buf)
 {
@@ -811,8 +810,6 @@ void proc_comm_ftm_wlanaddr_write(char* buf)
                 "%s: SMEM_PROC_COMM_OEM_FIH FAILED!!\n",
                 __func__);
     }
-    // Set wlanaddr_firstget = 0, re-execute msm_proc_comm_oem_multi() to get new wlanaddr data for FTM level.
-    wlanaddr_firstget = 0;
 }
 EXPORT_SYMBOL(proc_comm_ftm_wlanaddr_write);
 //Div2-SW6-Conn-JC-WiFi-GetMacFromNV-01+{
@@ -821,52 +818,29 @@ int proc_comm_ftm_wlanaddr_read(char * buf)
     uint32_t smem_proc_comm_oem_cmd1    = PCOM_CUSTOMER_CMD1;
     uint32_t smem_proc_comm_oem_data1   = SMEM_PROC_COMM_OEM_NV_READ;
     uint32_t smem_proc_comm_oem_data2   = 0; //useless
-
-    static int32_t data[3] = {0};
-
+    int32_t data[3] = {0};
     int32_t ret = 0;
 
+    memset((void*)data, 0x00, sizeof(data));
+    data[0] = (uint32_t)4678;	// NV_WLAN_MAC_ADDRESS_I
 
-    if(!wlanaddr_firstget)
-    {
-        memset((void*)data, 0x00, sizeof(data));
-
-        data[0] = (uint32_t)4678;  // NV_WLAN_MAC_ADDRESS_I
-
-        ret = msm_proc_comm_oem_multi(smem_proc_comm_oem_cmd1,
-                                      &smem_proc_comm_oem_data1,
-                                      &smem_proc_comm_oem_data2,
-                                      data,
-                                      3);
-                                  
-        if (ret != 0)
-        {
-            // Fail to get wlanaddr form SMEM memory.
-            printk(KERN_ERR "%s: SMEM_PROC_COMM_OEM_FIH FAILED!!\n", __func__);
-            return ret;
-        }
-        else
-        {
-            // Success to get wlanaddr form SMEM memory.
-            // Set wlanaddr_firstget = 1, avoid to overlap execute msm_proc_comm_oem_multi() for system level.
-            wlanaddr_firstget = 1;
-            printk(KERN_INFO "%s: First get wlanaddr data. \n", __func__);
-        }
+    ret = msm_proc_comm_oem_multi(smem_proc_comm_oem_cmd1, 
+                                    &smem_proc_comm_oem_data1,
+                                    &smem_proc_comm_oem_data2,
+                                    data,
+                                    3);
+     if (ret != 0) {
+        printk(KERN_ERR
+                "%s: SMEM_PROC_COMM_OEM_FIH FAILED!!\n",
+                __func__);
+	  return ret;
     }
-    else
-    {
-        printk(KERN_INFO "%s: Use previous wlanaddr data. \n", __func__);
-    }
-
-
+    
     memcpy(buf, &data[1], sizeof(char)*6);
-
-    if ((data[1] == 0) && (data[2] == 0)) ret = -1; // No available mac address, return invaild parameter.
-
+    if ((data[1] == 0) && (data[2] == 0)) ret = -1;
     printk(KERN_INFO "proc_comm_ftm_wlanaddr_read() '0x%x:%x:%x:%x:%x:%x'\n", buf[5], buf[4],buf[3], buf[2],buf[1], buf[0]);
     return ret;
 }
-//SW2-6-1-CONN-CD-WiFi-GetMacFromNV-03*]
 //Div2-SW6-JC-Conn-WiFi-GetMacFromNV-01+}
 EXPORT_SYMBOL(proc_comm_ftm_wlanaddr_read);
 //Div6-PT2-Peripheral-CD-WIFI_FTM_TEST-02+]
@@ -1185,32 +1159,32 @@ int proc_comm_alloc_sd_dl_smem(int action_id)
 }
 EXPORT_SYMBOL(proc_comm_alloc_sd_dl_smem);
 
-//int fih_write_nv4719( unsigned int* fih_debug )
-//{
-//    unsigned smem_response;
-//    uint32_t oem_cmd = SMEM_PROC_COMM_OEM_NV_WRITE;
-//    unsigned int cmd_para[4];
-//    int ret = 0;
-//
-//    printk(KERN_INFO "[SMEM_PROC_COMM] %s() LINE:%d \n", __func__, __LINE__);
-//    if ( fih_debug == NULL )
-//    {
-//        printk(KERN_ERR "[SMEM_PROC_COMM] %s() LINE:%d, ERROR: fih_debug is NULL.\n", __func__, __LINE__); 
-//        ret = -EINVAL;
-//    }
-//    else
-//    {
-//        cmd_para[0] = fih_debug[0];
-//        cmd_para[1] = fih_debug[1];
-//        ret = msm_proc_comm_oem_n(PCOM_CUSTOMER_CMD1, &oem_cmd, &smem_response, cmd_para, 2);
-//        if(ret != 0)
-//        {
-//            printk(KERN_ERR "[SMEM_PROC_COMM] %s() LINE:%d, ERROR: ret %d, cmd_para[0] %d.\n", __func__, __LINE__, ret, cmd_para[0]); 
-//        }
-//    }
-//    return ret;
-//}
-//EXPORT_SYMBOL(fih_write_nv4719);
+int fih_write_nv4719( unsigned int* fih_debug )
+{
+    unsigned smem_response;
+    uint32_t oem_cmd = SMEM_PROC_COMM_OEM_NV_WRITE;
+    unsigned int cmd_para[4];
+    int ret = 0;
+
+    printk(KERN_INFO "[SMEM_PROC_COMM] %s() LINE:%d \n", __func__, __LINE__);
+    if ( fih_debug == NULL )
+    {
+        printk(KERN_ERR "[SMEM_PROC_COMM] %s() LINE:%d, ERROR: fih_debug is NULL.\n", __func__, __LINE__); 
+        ret = -EINVAL;
+    }
+    else
+    {
+        cmd_para[0] = fih_debug[0];
+        cmd_para[1] = fih_debug[1];
+        ret = msm_proc_comm_oem_n(PCOM_CUSTOMER_CMD1, &oem_cmd, &smem_response, cmd_para, 2);
+        if(ret != 0)
+        {
+            printk(KERN_ERR "[SMEM_PROC_COMM] %s() LINE:%d, ERROR: ret %d, cmd_para[0] %d.\n", __func__, __LINE__, ret, cmd_para[0]); 
+        }
+    }
+    return ret;
+}
+EXPORT_SYMBOL(fih_write_nv4719);
 //Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +]
 
 /* FIHTDC, CHHsieh, PMIC Unlock { */
@@ -2547,8 +2521,6 @@ void proc_comm_ftm_battery_id_read(char* buf)
                 "%s: SMEM_PROC_COMM_OEM_FIH FAILED!!\n",
                 __func__);
     }
-    
-
     
     memcpy(buf, &data[1], 16);
     

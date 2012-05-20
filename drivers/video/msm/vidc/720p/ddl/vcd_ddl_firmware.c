@@ -346,12 +346,12 @@ u32 vcd_fw_transact(u32 add, u32 decoding, enum vcd_codec codec)
 
 void vcd_fw_release(void)
 {
-	ddl_pmem_free(&vcd_firmware.boot_code);
-	ddl_pmem_free(&vcd_firmware.enc_mpeg4);
-	ddl_pmem_free(&vcd_firmware.encH264);
-	ddl_pmem_free(&vcd_firmware.dec_mpeg4);
-	ddl_pmem_free(&vcd_firmware.decH264);
-	ddl_pmem_free(&vcd_firmware.decH263);
-	ddl_pmem_free(&vcd_firmware.dec_mpeg2);
-	ddl_pmem_free(&vcd_firmware.dec_vc1);
+	ddl_pmem_free(vcd_firmware.boot_code);
+	ddl_pmem_free(vcd_firmware.enc_mpeg4);
+	ddl_pmem_free(vcd_firmware.encH264);
+	ddl_pmem_free(vcd_firmware.dec_mpeg4);
+	ddl_pmem_free(vcd_firmware.decH264);
+	ddl_pmem_free(vcd_firmware.decH263);
+	ddl_pmem_free(vcd_firmware.dec_mpeg2);
+	ddl_pmem_free(vcd_firmware.dec_vc1);
 }

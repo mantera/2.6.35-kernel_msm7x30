@@ -44,6 +44,7 @@
 
 #include "i2c-core.h"
 
+int i2c_elan_touch_update = 0;
 
 /* core_lock protects i2c_adapter_idr, and guarantees
    that device detection, deletion of detected devices, and attach_adapter
@@ -1232,6 +1233,17 @@ int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 		}
 #endif
 
+		if (i2c_elan_touch_update)
+		{
+			if (msgs[0].addr != 0x77)
+			{
+				//printk(KERN_INFO "%s: ELAN touch update mode. I2C addr 0x%02x access deny.", __func__, msgs[0].addr);
+				return -EOPNOTSUPP;
+			}
+			else
+				printk(KERN_INFO "%s: ELAN touch update mode. addr 0x%02x.", __func__, msgs[0].addr);
+		}
+		
 		if (in_atomic() || irqs_disabled()) {
 			ret = rt_mutex_trylock(&adap->bus_lock);
 			if (!ret)

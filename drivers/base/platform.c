@@ -19,12 +19,12 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
-/* FIHTDC, Div2-SW2-BSP, Penho, SuspendLog { */
+
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai+[
 #ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
 #include <linux/kallsyms.h>
-#endif	// CONFIG_FIH_SUSPEND_RESUME_LOG
-/* } FIHTDC, Div2-SW2-BSP, Penho, SuspendLog */
-
+#endif
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai-]
 #include "base.h"
 
 #define to_platform_driver(drv)	(container_of((drv), struct platform_driver, \

@@ -77,7 +77,7 @@ enum
 	TOTAL_VERSION,
 };
 
-#define WORD_MODE 1 //Div2D5-OwenHuang-SF8_Chnage_ALS_Resolution-00+
+#define WORD_MODE 0 //Div2D5-OwenHuang-SF8_Chnage_ALS_Resolution-00+
 
 typedef struct
 {
@@ -251,8 +251,8 @@ static int cm_i2c_read_byte(struct i2c_client *client, int addr, char *data)
 
 //Div2D5-OwenHuang-SF8_ALSPS_Threshold-00+{
 //als sensor settings
-#define GAIN_ALS 0x03 << 6 //Div2D5-OwenHuang-SF5_ALSPS_Fine_Tune-01*
-#define THD_ALS  0x03 << 4 //Div2D5-OwenHuang-SF5_ALSPS_Fine_Tune-01*
+#define GAIN_ALS 0x03 << 6
+#define THD_ALS  0x00 << 4
 #define IT_ALS   0x00 << 2
 #define WDM      0x01 << 1
 #define SD_ALS   0x00 << 0 
@@ -264,18 +264,8 @@ static int cm_i2c_read_byte(struct i2c_client *client, int addr, char *data)
 #endif
 //Div2D5-OwenHuang-SF8_Chnage_ALS_Resolution-00+}
 
-//Div2D5-OwenHuang-SF8_ALSPS_Fine_Tune-02*{
 //proximity sensor settings
-#ifdef CONFIG_FIH_FTM //for FTM mode
-#define PS_INT_THRESHOLD 0x06 //for FTM used
-#else //for Android OS mode
-#ifdef CONFIG_FIH_PROJECT_SF8
-#define PS_INT_THRESHOLD 0x06 //enable P sensor
-#else
-#define PS_INT_THRESHOLD 0xFF //disable P sensor
-#endif 
-#endif
-//Div2D5-OwenHuang-SF8_ALSPS_Fine_Tune-02*}
+#define PS_INT_THRESHOLD 0x16 //5CM, see the spec, page13
 static int cm3623_init_chip(void)
 {
 	int ret = 0;

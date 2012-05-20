@@ -30,8 +30,17 @@ enum {
 	DEBUG_SUSPEND = 1U << 2,
 	DEBUG_EXPIRE = 1U << 3,
 	DEBUG_WAKE_LOCK = 1U << 4,
+	DEBUG_POLLING_DUMP_WAKELOCK = 1U << 5,	//Div251-PK-Dump_Wakelock-00+
 };
-static int debug_mask = DEBUG_EXIT_SUSPEND | DEBUG_WAKEUP;
+
+//Div251-PK-Dump_Wakelock-00+[
+#ifdef CONFIG_FIH_DUMP_WAKELOCK
+  static int debug_mask = DEBUG_EXIT_SUSPEND | DEBUG_WAKEUP | DEBUG_SUSPEND | DEBUG_POLLING_DUMP_WAKELOCK;
+#else
+  static int debug_mask = DEBUG_EXIT_SUSPEND | DEBUG_WAKEUP;
+#endif /* CONFIG_FIH_DUMP_WAKELOCK */
+//Div251-PK-Dump_Wakelock-00+]
+
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 #define WAKE_LOCK_TYPE_MASK              (0x0f)
@@ -39,6 +48,8 @@ module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 #define WAKE_LOCK_ACTIVE                 (1U << 9)
 #define WAKE_LOCK_AUTO_EXPIRE            (1U << 10)
 #define WAKE_LOCK_PREVENTING_SUSPEND     (1U << 11)
+
+#define POLLING_DUMP_WAKELOCK_SECS	(90)	//Div251-PK-Dump_Wakelock-00+
 
 static DEFINE_SPINLOCK(list_lock);
 static LIST_HEAD(inactive_locks);
@@ -515,8 +526,19 @@ static void print_active_locks(int type)
 			else if (print_expired)
 				pr_info("wake lock %s, expired\n", lock->name);
 		} else {
+//Div251-PK-Dump_Wakelock-00+[
+#ifdef CONFIG_FIH_DUMP_WAKELOCK
+			ktime_t now = ktime_get();
+			ktime_t active_time = ktime_sub(now, lock->stat.last_time);
+			s64 ns = ktime_to_ns(active_time);
+			s64 s = ns;			
+			ns = do_div(s, NSEC_PER_SEC);
+			pr_info("active wake lock %s %lld.%lld secs\n", lock->name, s, ns);
+#else
 			pr_info("active wake lock %s\n", lock->name);
-			if (!(debug_mask & DEBUG_EXPIRE))
+#endif /* CONFIG_FIH_DUMP_WAKELOCK */
+//Div251-PK-Dump_Wakelock-00+]
+			if ((!debug_mask) & DEBUG_EXPIRE)
 				print_expired = false;
 		}
 	}
@@ -642,6 +664,28 @@ int suspend_sys_sync_wait(void)
 	return 0;
 }
 
+//Div251-PK-Dump_Wakelock-00+[
+#ifdef CONFIG_FIH_DUMP_WAKELOCK
+static void dump_wakelocks(unsigned long data);
+static DEFINE_TIMER(dump_wakelock_timer, dump_wakelocks, 0, 0);
+
+static void dump_wakelocks(unsigned long data)
+{
+	unsigned long irqflags;
+
+	if (debug_mask & DEBUG_POLLING_DUMP_WAKELOCK) {
+		pr_info("[PM]--- dump_wakelocks ---\n");
+
+		spin_lock_irqsave(&list_lock, irqflags);
+			print_active_locks(WAKE_LOCK_SUSPEND);
+		spin_unlock_irqrestore(&list_lock, irqflags);
+	}
+
+	mod_timer(&dump_wakelock_timer, jiffies + POLLING_DUMP_WAKELOCK_SECS*HZ);
+}
+#endif /* CONFIG_FIH_DUMP_WAKELOCK */
+//Div251-PK-Dump_Wakelock-00+]
+
 static void suspend(struct work_struct *work)
 {
 	int ret;
@@ -650,6 +694,14 @@ static void suspend(struct work_struct *work)
 	if (has_wake_lock(WAKE_LOCK_SUSPEND)) {
 		if (debug_mask & DEBUG_SUSPEND)
 			pr_info("suspend: abort suspend\n");
+			
+//Div251-PK-Dump_Wakelock-00+[
+#ifdef CONFIG_FIH_DUMP_WAKELOCK
+		pr_info("requested_suspend_state = %d\n", requested_suspend_state);
+		if (requested_suspend_state != PM_SUSPEND_ON)
+			mod_timer(&dump_wakelock_timer, jiffies + POLLING_DUMP_WAKELOCK_SECS*HZ);
+#endif /* CONFIG_FIH_DUMP_WAKELOCK */
+//Div251-PK-Dump_Wakelock-00+]
 		return;
 	}
 
@@ -657,6 +709,13 @@ static void suspend(struct work_struct *work)
 	suspend_sys_sync_queue();
 	if (debug_mask & DEBUG_SUSPEND)
 		pr_info("suspend: enter suspend\n");
+
+//Div251-PK-Dump_Wakelock-00+[
+#ifdef CONFIG_FIH_DUMP_WAKELOCK
+	if (del_timer(&dump_wakelock_timer))
+		pr_info("suspend: del dump_wakelock_timer\n");
+#endif /* CONFIG_FIH_DUMP_WAKELOCK */
+//Div251-PK-Dump_Wakelock-00+]
 
 	//Div2-SW2-BSP-pmlog, HenryMCWang +
 	#if defined(CONFIG_FIH_POWER_LOG)
@@ -827,6 +886,14 @@ static void wake_lock_internal(
 	}
 	if (type == WAKE_LOCK_SUSPEND) {
 		current_event_num++;
+//Div251-PK-Dump_Wakelock-00+[
+#ifdef CONFIG_FIH_DUMP_WAKELOCK
+		if (lock == &main_wake_lock) {
+			if (del_timer(&dump_wakelock_timer))
+				pr_info("main_wake_lock: del dump_wakelock_timer\n");
+		}
+#endif /* CONFIG_FIH_DUMP_WAKELOCK */
+//Div251-PK-Dump_Wakelock-00+]
 #ifdef CONFIG_WAKELOCK_STAT
 		if (lock == &main_wake_lock)
 			update_sleep_wait_stats_locked(1);
@@ -903,6 +970,14 @@ void wake_unlock(struct wake_lock *lock)
 			pmlog_active_locks(WAKE_LOCK_SUSPEND);
 			#endif
 			//Div2-SW2-BSP-pmlog, HenryMCWang -
+//Div251-PK-Dump_Wakelock-00+[
+#ifdef CONFIG_FIH_DUMP_WAKELOCK
+			if (has_lock){
+				pr_info("but still have lock.\n");
+				mod_timer(&dump_wakelock_timer, jiffies + POLLING_DUMP_WAKELOCK_SECS*HZ);
+			}
+#endif /* CONFIG_FIH_DUMP_WAKELOCK */
+//Div251-PK-Dump_Wakelock-00+]
 #ifdef CONFIG_WAKELOCK_STAT
 			update_sleep_wait_stats_locked(0);
 #endif

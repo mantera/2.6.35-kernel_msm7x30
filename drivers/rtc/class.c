@@ -56,6 +56,12 @@ static int rtc_suspend(struct device *dev, pm_message_t mesg)
 	struct timespec		ts;
 	struct timespec		new_delta;
 
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai+[
+#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
+    printk(KERN_INFO "rtc_suspend(): %s, dev_name = %s\n", rtc->name, dev_name(&rtc->dev));
+#endif
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai-]
+
 //SW2-5-2-MP-DbgCfgTool-00+[
 #ifdef CONFIG_FIH_LAST_ALOG
 	alog_ram_console_sync_time(LOG_TYPE_ALL, SYNC_BEFORE);

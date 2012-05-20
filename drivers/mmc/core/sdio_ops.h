@@ -19,5 +19,6 @@ int mmc_io_rw_extended(struct mmc_card *card, int write, unsigned fn,
 	unsigned addr, int incr_addr, u8 *buf, unsigned blocks, unsigned blksz);
 int sdio_reset(struct mmc_host *host);
 
+void sdio_recover_helper(struct sdio_func *func);	//sw2-6-1-RH-Wlan_Reset7-00+
 #endif
 
